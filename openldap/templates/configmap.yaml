@@ -1,0 +1,92 @@
+{{- $replicationEnabled := eq (include "openldap.replicationEnabled" .) "true" -}}
+{{- if and $replicationEnabled .Values.bootstrap.replication.autoConfigure (not .Values.bootstrap.replication.hosts) (lt (int .Values.replicaCount) 2) }}
+{{- fail "bootstrap.replication.mode=enabled with bootstrap.replication.autoConfigure=true requires replicaCount >= 2 or bootstrap.replication.hosts" }}
+{{- end }}
+{{- if and .Release.IsUpgrade .Values.preUpgrade.enabled (not .Values.preUpgrade.image.tag) }}
+{{- fail "preUpgrade.image.tag must be set during upgrades so openldap-pre-upgrade runs with the previous image version" }}
+{{- end }}
+{{- if and .Values.openldap.customModules.enabled (empty .Values.openldap.customModules.volume) }}
+{{- fail "openldap.customModules.volume must be set when openldap.customModules.enabled=true" }}
+{{- end }}
+{{- if and .Values.openldap.customSchemas.enabled (empty .Values.openldap.customSchemas.volume) }}
+{{- fail "openldap.customSchemas.volume must be set when openldap.customSchemas.enabled=true" }}
+{{- end }}
+{{- if not (has .Values.upgrade.migrationLevel (list "patch" "minor" "major")) }}
+{{- fail "upgrade.migrationLevel must be one of: patch, minor, major" }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "openldap.fullname" . }}-env
+  labels:
+    {{- include "openldap.labels" . | nindent 4 }}
+data:
+  OPENLDAP_NOFILE: {{ .Values.openldap.nofile | quote }}
+  OPENLDAP_DEBUG_LEVEL: {{ .Values.openldap.debugLevel | quote }}
+  OPENLDAP_UPGRADE_FORCE: {{ ternary "true" "false" .Values.upgrade.force | quote }}
+  OPENLDAP_UPGRADE_MIGRATION_LEVEL: {{ .Values.upgrade.migrationLevel | quote }}
+  {{- if not (and $replicationEnabled .Values.bootstrap.replication.autoConfigure) }}
+  OPENLDAP_URLS: {{ .Values.openldap.urls | quote }}
+  {{- end }}
+  {{- if .Values.openldap.customModules.enabled }}
+  OPENLDAP_CUSTOM_MODULES_DIR: "/container/services/openldap/assets/module"
+  {{- end }}
+  {{- if .Values.openldap.customSchemas.enabled }}
+  OPENLDAP_CUSTOM_SCHEMAS_DIR: "/container/services/openldap/assets/schema"
+  {{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "openldap.fullname" . }}-bootstrap-env
+  labels:
+    {{- include "openldap.labels" . | nindent 4 }}
+data:
+  OPENLDAP_BOOTSTRAP_ORGANIZATION: {{ .Values.bootstrap.organization | quote }}
+  OPENLDAP_BOOTSTRAP_SUFFIX: {{ .Values.bootstrap.suffix | quote }}
+  OPENLDAP_BOOTSTRAP_MODULES: {{ join " " .Values.bootstrap.modules | quote }}
+  OPENLDAP_BOOTSTRAP_SCHEMAS: {{ join " " .Values.bootstrap.schemas | quote }}
+  OPENLDAP_BOOTSTRAP_GLOBAL_SIZE_LIMIT: {{ .Values.bootstrap.global.sizeLimit | quote }}
+  OPENLDAP_BOOTSTRAP_GLOBAL_TIME_LIMIT: {{ .Values.bootstrap.global.timeLimit | quote }}
+  OPENLDAP_BOOTSTRAP_GLOBAL_IDLE_TIMEOUT: {{ .Values.bootstrap.global.idleTimeout | quote }}
+  OPENLDAP_BOOTSTRAP_CONFIG_PASSWORD_HASH: {{ .Values.bootstrap.config.passwordHash | quote }}
+  OPENLDAP_BOOTSTRAP_CONFIG_ROOT_DN: {{ .Values.bootstrap.config.rootDn | quote }}
+  OPENLDAP_BOOTSTRAP_CONFIG_ROOT_PASSWORD_HASHED: {{ .Values.bootstrap.config.rootPasswordHashed | quote }}
+  OPENLDAP_BOOTSTRAP_DATA_DATABASE_MAX_SIZE: {{ .Values.bootstrap.database.maxSize | quote }}
+  OPENLDAP_BOOTSTRAP_DATA_ROOT_DN: {{ .Values.bootstrap.database.rootDn | quote }}
+  OPENLDAP_BOOTSTRAP_DATA_ROOT_PASSWORD_HASHED: {{ .Values.bootstrap.database.rootPasswordHashed | quote }}
+  OPENLDAP_BOOTSTRAP_DATA_READONLY: {{ ternary "true" "false" .Values.bootstrap.database.readonly.enabled | quote }}
+  OPENLDAP_BOOTSTRAP_DATA_READONLY_DN: {{ .Values.bootstrap.database.readonly.dn | quote }}
+  OPENLDAP_BOOTSTRAP_DATA_READONLY_PASSWORD_HASHED: {{ .Values.bootstrap.database.readonly.passwordHashed | quote }}
+  OPENLDAP_BOOTSTRAP_MONITOR_ENABLED: {{ ternary "true" "false" .Values.bootstrap.monitor.enabled | quote }}
+  OPENLDAP_BOOTSTRAP_MONITOR_READONLY: {{ ternary "true" "false" .Values.bootstrap.monitor.readonly.enabled | quote }}
+  OPENLDAP_BOOTSTRAP_MONITOR_READONLY_DN: {{ .Values.bootstrap.monitor.readonly.dn | quote }}
+  OPENLDAP_BOOTSTRAP_MONITOR_READONLY_PASSWORD_HASHED: {{ .Values.bootstrap.monitor.readonly.passwordHashed | quote }}
+  OPENLDAP_BOOTSTRAP_TLS: {{ ternary "true" "false" .Values.bootstrap.tls.enabled | quote }}
+  OPENLDAP_BOOTSTRAP_TLS_CERT: "/container/services/openldap/assets/certs/cert.crt"
+  OPENLDAP_BOOTSTRAP_TLS_CERT_KEY: "/container/services/openldap/assets/certs/cert.key"
+  OPENLDAP_BOOTSTRAP_TLS_CA_CERT: "/container/services/openldap/assets/certs/ca.crt"
+  OPENLDAP_BOOTSTRAP_TLS_VERIFY_CLIENT: {{ .Values.bootstrap.tls.verifyClient | quote }}
+  OPENLDAP_BOOTSTRAP_TLS_PROTOCOL_MIN: {{ .Values.bootstrap.tls.protocolMin | quote }}
+  OPENLDAP_BOOTSTRAP_TLS_REQUIRED: {{ ternary "true" "false" .Values.bootstrap.tls.required | quote }}
+  OPENLDAP_BOOTSTRAP_REFINT: {{ ternary "true" "false" .Values.bootstrap.refint.enabled | quote }}
+  OPENLDAP_BOOTSTRAP_REFINT_ATTRIBUTES: {{ .Values.bootstrap.refint.attributes | quote }}
+  OPENLDAP_BOOTSTRAP_PPOLICY: {{ ternary "true" "false" .Values.bootstrap.ppolicy.enabled | quote }}
+  OPENLDAP_BOOTSTRAP_UNIQUE: {{ ternary "true" "false" .Values.bootstrap.unique.enabled | quote }}
+  OPENLDAP_BOOTSTRAP_UNIQUE_URIS: {{ .Values.bootstrap.unique.uris | quote }}
+  OPENLDAP_BOOTSTRAP_MEMBEROF: {{ ternary "true" "false" .Values.bootstrap.memberof.enabled | quote }}
+  OPENLDAP_BOOTSTRAP_MEMBEROF_GROUP_OC: {{ .Values.bootstrap.memberof.groupObjectClass | quote }}
+  OPENLDAP_BOOTSTRAP_MEMBEROF_MEMBER_AD: {{ .Values.bootstrap.memberof.memberAttribute | quote }}
+  OPENLDAP_BOOTSTRAP_MEMBEROF_MEMBEROF_AD: {{ .Values.bootstrap.memberof.memberOfAttribute | quote }}
+  OPENLDAP_BOOTSTRAP_MEMBEROF_ADD_CHECK: {{ ternary "true" "false" .Values.bootstrap.memberof.addCheck | quote }}
+  OPENLDAP_BOOTSTRAP_MEMBEROF_DANGLING: {{ .Values.bootstrap.memberof.dangling | quote }}
+  OPENLDAP_BOOTSTRAP_REPLICATION: {{ ternary "true" "false" $replicationEnabled | quote }}
+  {{- if and $replicationEnabled .Values.bootstrap.replication.autoConfigure }}
+  OPENLDAP_BOOTSTRAP_REPLICATION_HOSTS: {{ include "openldap.replicationHosts" . | quote }}
+  OPENLDAP_BOOTSTRAP_REPLICATION_SYNCPROV_CHECKPOINT: {{ .Values.bootstrap.replication.syncprovCheckpoint | quote }}
+  OPENLDAP_BOOTSTRAP_REPLICATION_DATA_READONLY_PASSWORD: {{ .Values.bootstrap.replication.dataReadonlyPassword | quote }}
+  OPENLDAP_BOOTSTRAP_REPLICATION_TLS: {{ ternary "true" "false" .Values.bootstrap.replication.tls | quote }}
+  {{- if kindIs "bool" .Values.bootstrap.replication.memberof }}
+  OPENLDAP_BOOTSTRAP_REPLICATION_MEMBEROF: {{ ternary "true" "false" .Values.bootstrap.replication.memberof | quote }}
+  {{- end }}
+  {{- end }}

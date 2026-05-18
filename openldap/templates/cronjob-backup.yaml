@@ -1,0 +1,61 @@
+{{- if .Values.backupCronJob.enabled }}
+{{- if not .Values.persistence.enabled }}
+{{- fail "backupCronJob.enabled requires persistence.enabled=true because the backup job mounts StatefulSet PVCs" }}
+{{- end }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "openldap.fullname" . }}-backup
+  labels:
+    {{- include "openldap.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.backupCronJob.schedule | quote }}
+  successfulJobsHistoryLimit: {{ .Values.backupCronJob.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.backupCronJob.failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            {{- include "openldap.selectorLabels" . | nindent 12 }}
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: {{ include "openldap.serviceAccountName" . }}
+          {{- with .Values.podSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: backup
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command:
+                {{- toYaml .Values.backupCronJob.command | nindent 16 }}
+              envFrom:
+                - configMapRef:
+                    name: {{ include "openldap.fullname" . }}-env
+                - secretRef:
+                    name: {{ include "openldap.secretName" . }}
+                    optional: true
+              {{- with .Values.backupCronJob.resources }}
+              resources:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              volumeMounts:
+                - name: conf
+                  mountPath: /etc/openldap/slapd.d
+                - name: data
+                  mountPath: /var/lib/openldap/openldap-data
+                - name: backups
+                  mountPath: /var/lib/openldap/openldap-backups
+          volumes:
+            - name: conf
+              persistentVolumeClaim:
+                claimName: conf-{{ include "openldap.fullname" . }}-0
+            - name: data
+              persistentVolumeClaim:
+                claimName: data-{{ include "openldap.fullname" . }}-0
+            - name: backups
+              persistentVolumeClaim:
+                claimName: backups-{{ include "openldap.fullname" . }}-0
+{{- end }}

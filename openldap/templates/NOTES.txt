@@ -1,0 +1,12 @@
+OpenLDAP has been deployed.
+
+LDAP service:
+  {{ include "openldap.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.ldapPort }}
+
+LDAPS service:
+  {{ include "openldap.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.ldapsPort }}
+
+Example search from inside the cluster:
+  ldapsearch -H ldap://{{ include "openldap.fullname" . }}:{{ .Values.service.ldapPort }} -b "{{ .Values.bootstrap.suffix }}" "(objectClass=*)"
+
+Bootstrap only runs when the config and data volumes are empty.

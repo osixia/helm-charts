@@ -1,0 +1,202 @@
+replicaCount: 1
+
+image:
+  repository: osixia/openldap
+  tag: 2.6.10-alpha
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  fsGroup: 911
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 911
+  runAsGroup: 911
+
+service:
+  type: ClusterIP
+  annotations: {}
+  ldapPort: 389
+  ldapsPort: 636
+
+headlessService:
+  annotations: {}
+
+containerPorts:
+  ldap: 3890
+  ldaps: 6360
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podAntiAffinity:
+  enabled: true
+  type: preferred
+  weight: 100
+  topologyKey: kubernetes.io/hostname
+
+updateStrategy:
+  type: RollingUpdate
+
+terminationGracePeriodSeconds: 60
+
+openldap:
+  nofile: "8192"
+  debugLevel: "256"
+  urls: "ldap://:3890 ldaps://:6360 ldapi:///"
+  customModules:
+    enabled: false
+    volume: {}
+  customSchemas:
+    enabled: false
+    volume: {}
+
+upgrade:
+  force: false
+  migrationLevel: minor
+
+extraEnv: []
+
+bootstrap:
+  organization: "Example Org"
+  suffix: "dc=example,dc=org"
+  modules:
+    - back_mdb.so
+    - argon2.so
+    - ppolicy.so
+    - unique.so
+    - refint.so
+    - memberof.so
+    - syncprov.so
+  schemas:
+    - core.ldif
+    - cosine.ldif
+    - inetorgperson.ldif
+    - rfc2307bis.ldif
+  global:
+    sizeLimit: 500
+    timeLimit: 120
+    idleTimeout: 3600
+  config:
+    passwordHash: "{ARGON2}"
+    rootDn: "cn=admin,cn=config"
+    rootPasswordHashed: ""
+  database:
+    maxSize: "10737418240"
+    rootDn: "cn=admin,dc=example,dc=org"
+    rootPasswordHashed: ""
+    readonly:
+      enabled: false
+      dn: "cn=readonly,dc=example,dc=org"
+      passwordHashed: ""
+  monitor:
+    enabled: false
+    readonly:
+      enabled: false
+      dn: "cn=readonly-monitor,dc=example,dc=org"
+      passwordHashed: ""
+  tls:
+    enabled: false
+    required: false
+    verifyClient: allow
+    protocolMin: "3.4"
+    existingSecret: ""
+    certKey: cert.crt
+    privateKeyKey: cert.key
+    caKey: ca.crt
+  refint:
+    enabled: false
+    attributes: "member uniqueMember manager owner"
+  ppolicy:
+    enabled: false
+  unique:
+    enabled: false
+    uris: "ldap:///?uid?sub ldap:///?mail?sub"
+  memberof:
+    enabled: false
+    groupObjectClass: groupOfNames
+    memberAttribute: member
+    memberOfAttribute: memberOf
+    addCheck: true
+    dangling: ignore
+  replication:
+    mode: auto
+    autoConfigure: true
+    scheme: ldap
+    port: 3890
+    hosts: []
+    tls: false
+    memberof: ""
+    dataReadonlyPassword: ""
+    syncprovCheckpoint: "100 10"
+  resources: {}
+
+preUpgrade:
+  enabled: true
+  image:
+    repository: ""
+    tag: ""
+    pullPolicy: IfNotPresent
+  resources: {}
+
+secret:
+  create: true
+  existingSecret: ""
+  env: {}
+
+persistence:
+  enabled: true
+  accessModes:
+    - ReadWriteOnce
+  storageClass: ""
+  conf:
+    size: 1Gi
+  data:
+    size: 8Gi
+  backups:
+    size: 8Gi
+
+extraVolumes: []
+extraVolumeMounts: []
+
+livenessProbe:
+  tcpSocket:
+    port: ldap
+  initialDelaySeconds: 30
+  periodSeconds: 20
+  timeoutSeconds: 5
+  failureThreshold: 6
+
+readinessProbe:
+  tcpSocket:
+    port: ldap
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 6
+
+backupCronJob:
+  enabled: false
+  schedule: "15 2 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  command:
+    - /bin/sh
+    - -ec
+    - container run -- openldap-ctl backup "$(date -I)-${OPENLDAP_VERSION}-openldap-cron" --clean 15
+  resources: {}
