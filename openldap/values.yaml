@@ -248,3 +248,14 @@ backupCronJob:
     - -ec
     - container run -- openldap-ctl backup "$(date -I)-${OPENLDAP_VERSION}-openldap-cron" --clean 15
   resources: {}
+
+phpldapadmin:
+  enabled: false
+  app:
+    ldap:
+      # Typically: <release>-openldap.<namespace>.svc.cluster.local
+      host: ""
+      port: 389
+      connection: ldap
+      ssl: false
+      tls: false

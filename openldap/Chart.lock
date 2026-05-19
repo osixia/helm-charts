@@ -1,0 +1,6 @@
+dependencies:
+- name: phpldapadmin
+  repository: file://../phpldapadmin
+  version: 0.1.0
+digest: sha256:3aa5c7dec77e193f2fc4fb82f780fff03f4c3ae8edd9c1f337a97819627ff95f
+generated: "2026-05-19T22:51:58.600975032+02:00"

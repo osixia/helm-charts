@@ -1,0 +1,97 @@
+replicaCount: 1
+
+image:
+  repository: phpldapadmin/phpldapadmin
+  tag: "2.3.11"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: phpldapadmin.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+httpRoute:
+  enabled: false
+  annotations: {}
+  parentRefs:
+    - name: ""
+      # namespace: ""
+      # sectionName: ""
+  hostnames: []
+  # - phpldapadmin.example.com
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+livenessProbe:
+  enabled: true
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 20
+  timeoutSeconds: 5
+  failureThreshold: 6
+
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 6
+
+app:
+  # Laravel encryption key — auto-generated and stable across upgrades if left empty.
+  # Set explicitly if you need a predictable value (e.g. for session portability).
+  appKey: ""
+
+  ldap:
+    # Display name shown in the UI
+    name: "LDAP Server"
+    # Host of the LDAP server — e.g. <openldap-release>.<namespace>.svc.cluster.local
+    host: ""
+    port: 389
+    # Connection profile: ldap | ldaps
+    connection: ldap
+    ssl: false
+    tls: false
+    timeout: 5
+    # Warn when logged in as root DN
+    alertRootDn: true
+    cache: false
+
+  # Reference an existing secret containing APP_KEY.
+  # If set, the chart does not generate APP_KEY automatically.
+  existingSecret: ""

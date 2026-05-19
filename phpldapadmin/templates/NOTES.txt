@@ -1,0 +1,14 @@
+phpLDAPadmin has been deployed.
+
+{{- if .Values.ingress.enabled }}
+{{- range .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}
+{{- end }}
+{{- else }}
+Access the UI by forwarding the service port:
+  kubectl port-forward svc/{{ include "phpldapadmin.fullname" . }} 8080:{{ .Values.service.port }} -n {{ .Release.Namespace }}
+
+Then open: http://localhost:8080
+{{- end }}
+
+LDAP server: {{ .Values.app.ldap.host }}:{{ .Values.app.ldap.port }}
