@@ -92,8 +92,9 @@ bootstrap:
     sizeLimit: 500
     timeLimit: 120
     idleTimeout: 3600
-  config:
+  frontend:
     passwordHash: "{ARGON2}"
+  config:
     rootDn: "cn=admin,cn=config"
     rootPasswordHashed: ""
   database:
@@ -116,8 +117,8 @@ bootstrap:
     verifyClient: allow
     protocolMin: "3.4"
     existingSecret: ""
-    certKey: cert.crt
-    privateKeyKey: cert.key
+    certKey: tls.crt
+    privateKeyKey: tls.key
     caKey: ca.crt
   refint:
     enabled: false

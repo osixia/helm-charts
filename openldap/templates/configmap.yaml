@@ -49,7 +49,7 @@ data:
   OPENLDAP_BOOTSTRAP_GLOBAL_SIZE_LIMIT: {{ .Values.bootstrap.global.sizeLimit | quote }}
   OPENLDAP_BOOTSTRAP_GLOBAL_TIME_LIMIT: {{ .Values.bootstrap.global.timeLimit | quote }}
   OPENLDAP_BOOTSTRAP_GLOBAL_IDLE_TIMEOUT: {{ .Values.bootstrap.global.idleTimeout | quote }}
-  OPENLDAP_BOOTSTRAP_CONFIG_PASSWORD_HASH: {{ .Values.bootstrap.config.passwordHash | quote }}
+  OPENLDAP_BOOTSTRAP_FRONTEND_PASSWORD_HASH: {{ .Values.bootstrap.frontend.passwordHash | quote }}
   OPENLDAP_BOOTSTRAP_CONFIG_ROOT_DN: {{ .Values.bootstrap.config.rootDn | quote }}
   OPENLDAP_BOOTSTRAP_CONFIG_ROOT_PASSWORD_HASHED: {{ .Values.bootstrap.config.rootPasswordHashed | quote }}
   OPENLDAP_BOOTSTRAP_DATA_DATABASE_MAX_SIZE: {{ .Values.bootstrap.database.maxSize | quote }}
@@ -63,9 +63,6 @@ data:
   OPENLDAP_BOOTSTRAP_MONITOR_READONLY_DN: {{ .Values.bootstrap.monitor.readonly.dn | quote }}
   OPENLDAP_BOOTSTRAP_MONITOR_READONLY_PASSWORD_HASHED: {{ .Values.bootstrap.monitor.readonly.passwordHashed | quote }}
   OPENLDAP_BOOTSTRAP_TLS: {{ ternary "true" "false" .Values.bootstrap.tls.enabled | quote }}
-  OPENLDAP_BOOTSTRAP_TLS_CERT: "/container/services/openldap/assets/certs/cert.crt"
-  OPENLDAP_BOOTSTRAP_TLS_CERT_KEY: "/container/services/openldap/assets/certs/cert.key"
-  OPENLDAP_BOOTSTRAP_TLS_CA_CERT: "/container/services/openldap/assets/certs/ca.crt"
   OPENLDAP_BOOTSTRAP_TLS_VERIFY_CLIENT: {{ .Values.bootstrap.tls.verifyClient | quote }}
   OPENLDAP_BOOTSTRAP_TLS_PROTOCOL_MIN: {{ .Values.bootstrap.tls.protocolMin | quote }}
   OPENLDAP_BOOTSTRAP_TLS_REQUIRED: {{ ternary "true" "false" .Values.bootstrap.tls.required | quote }}

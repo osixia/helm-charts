@@ -249,9 +249,9 @@ spec:
             secretName: {{ include "openldap.tlsSecretName" . }}
             items:
               - key: {{ .Values.bootstrap.tls.certKey }}
-                path: cert.crt
+                path: tls.crt
               - key: {{ .Values.bootstrap.tls.privateKeyKey }}
-                path: cert.key
+                path: tls.key
               - key: {{ .Values.bootstrap.tls.caKey }}
                 path: ca.crt
         {{- end }}

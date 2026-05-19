@@ -97,7 +97,7 @@ bootstrap:
     existingSecret: openldap-tls
 ```
 
-TLS bootstrap environment variables are generated from `bootstrap.tls:`. The mounted files are exposed to OpenLDAP as `cert.crt`, `cert.key`, and `ca.crt` under `/container/services/openldap/assets/certs`.
+TLS bootstrap environment variables are generated from `bootstrap.tls:`. The mounted files are exposed to OpenLDAP as `tls.crt`, `tls.key`, and `ca.crt` under `/container/services/openldap/assets/certs`.
 
 ## Replication
 
