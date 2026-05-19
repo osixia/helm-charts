@@ -11,14 +11,18 @@ metadata:
 spec:
   type: {{ .Values.service.type }}
   ports:
+    {{- if .Values.openldap.protocols.ldap.enabled }}
     - name: ldap
       port: {{ .Values.service.ldapPort }}
       targetPort: ldap
       protocol: TCP
+    {{- end }}
+    {{- if .Values.openldap.protocols.ldaps.enabled }}
     - name: ldaps
       port: {{ .Values.service.ldapsPort }}
       targetPort: ldaps
       protocol: TCP
+    {{- end }}
   selector:
     {{- include "openldap.selectorLabels" . | nindent 4 }}
 ---
@@ -36,13 +40,17 @@ spec:
   clusterIP: None
   publishNotReadyAddresses: true
   ports:
+    {{- if .Values.openldap.protocols.ldap.enabled }}
     - name: ldap
       port: {{ .Values.service.ldapPort }}
       targetPort: ldap
       protocol: TCP
+    {{- end }}
+    {{- if .Values.openldap.protocols.ldaps.enabled }}
     - name: ldaps
       port: {{ .Values.service.ldapsPort }}
       targetPort: ldaps
       protocol: TCP
+    {{- end }}
   selector:
     {{- include "openldap.selectorLabels" . | nindent 4 }}

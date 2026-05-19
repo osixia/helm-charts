@@ -1,8 +1,15 @@
 replicaCount: 1
 
+clusterDomain: cluster.local
+
 image:
   repository: osixia/openldap
   tag: 2.6.10-alpha
+  pullPolicy: IfNotPresent
+
+previousImage:
+  repository: ""
+  tag: ""
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -34,10 +41,6 @@ service:
 headlessService:
   annotations: {}
 
-containerPorts:
-  ldap: 3890
-  ldaps: 6360
-
 resources: {}
 
 nodeSelector: {}
@@ -55,110 +58,146 @@ updateStrategy:
 
 terminationGracePeriodSeconds: 60
 
+extraEnv: []
+
+extraEnvSecret:
+  existingSecret: ""
+  env: {}
+
+bootstrapEnvSecret:
+  existingSecret: ""
+  env: {}
+
+tlsSecret:
+  existingSecret: ""
+  keys:
+    cert: tls.crt
+    key: tls.key
+    ca: ca.crt
+
 openldap:
   nofile: "8192"
   debugLevel: "256"
-  urls: "ldap://:3890 ldaps://:6360 ldapi:///"
-  customModules:
-    enabled: false
-    volume: {}
-  customSchemas:
-    enabled: false
-    volume: {}
 
-upgrade:
-  force: false
-  migrationLevel: minor
+  protocols:
+    ldap:
+      enabled: true
+      port: 3890
+    ldaps:
+      enabled: true
+      port: 6360
+    ldapi:
+      enabled: true
 
-extraEnv: []
+  preUpgrade:
+    enabled: true
 
-bootstrap:
-  organization: "Example Org"
-  suffix: "dc=example,dc=org"
-  modules:
-    - back_mdb.so
-    - argon2.so
-    - ppolicy.so
-    - unique.so
-    - refint.so
-    - memberof.so
-    - syncprov.so
-  schemas:
-    - core.ldif
-    - cosine.ldif
-    - inetorgperson.ldif
-    - rfc2307bis.ldif
-  global:
-    sizeLimit: 500
-    timeLimit: 120
-    idleTimeout: 3600
-  frontend:
-    passwordHash: "{ARGON2}"
-  config:
-    rootDn: "cn=admin,cn=config"
-    rootPasswordHashed: ""
-  database:
-    maxSize: "10737418240"
-    rootDn: "cn=admin,dc=example,dc=org"
-    rootPasswordHashed: ""
-    readonly:
+  upgrade:
+    force: false
+    migrationLevel: minor
+
+  bootstrap:
+    organization: "Example Org"
+    suffix: "dc=example,dc=org"
+
+    modules:
+      - back_mdb.so
+      - argon2.so
+      - ppolicy.so
+      - unique.so
+      - refint.so
+      - memberof.so
+      - syncprov.so
+
+    schemas:
+      - core.ldif
+      - cosine.ldif
+      - inetorgperson.ldif
+      - rfc2307bis.ldif
+
+    global:
+      sizeLimit: 500
+      timeLimit: 120
+      idleTimeout: 3600
+
+    frontend:
+      passwordHash: "{ARGON2}"
+
+    config:
+      rootDnPrefix: "cn=admin"
+      rootPasswordHashed: ""
+
+    database:
+      maxSize: "10737418240"
+      rootDnPrefix: "cn=admin"
+      rootPasswordHashed: ""
+      readonly:
+        enabled: false
+        dnPrefix: "cn=readonly"
+        passwordHashed: ""
+
+    monitor:
       enabled: false
-      dn: "cn=readonly,dc=example,dc=org"
-      passwordHashed: ""
-  monitor:
-    enabled: false
-    readonly:
+      readonly:
+        enabled: false
+        dnPrefix: "cn=readonly-monitor"
+        passwordHashed: ""
+
+    tls:
       enabled: false
-      dn: "cn=readonly-monitor,dc=example,dc=org"
-      passwordHashed: ""
-  tls:
-    enabled: false
-    required: false
-    verifyClient: allow
-    protocolMin: "3.4"
-    existingSecret: ""
-    certKey: tls.crt
-    privateKeyKey: tls.key
-    caKey: ca.crt
-  refint:
-    enabled: false
-    attributes: "member uniqueMember manager owner"
-  ppolicy:
-    enabled: false
-  unique:
-    enabled: false
-    uris: "ldap:///?uid?sub ldap:///?mail?sub"
-  memberof:
-    enabled: false
-    groupObjectClass: groupOfNames
-    memberAttribute: member
-    memberOfAttribute: memberOf
-    addCheck: true
-    dangling: ignore
-  replication:
-    mode: auto
-    autoConfigure: true
-    scheme: ldap
-    port: 3890
-    hosts: []
-    tls: false
-    memberof: ""
-    dataReadonlyPassword: ""
-    syncprovCheckpoint: "100 10"
-  resources: {}
+      required: false
+      verifyClient: allow
+      protocolMin: "3.4"
 
-preUpgrade:
-  enabled: true
-  image:
-    repository: ""
-    tag: ""
-    pullPolicy: IfNotPresent
-  resources: {}
+    refint:
+      enabled: false
+      attributes: "member uniqueMember manager owner"
 
-secret:
-  create: true
-  existingSecret: ""
-  env: {}
+    ppolicy:
+      enabled: false
+      hashClearText: true
+      useLockout: true
+      checkModule: ""
+      groupDnPrefix: "ou=Policies"
+      default:
+        policyDnPrefix: "cn=default"
+        minLength: 12
+        checkQuality: 0
+        inHistory: 12
+        allowUserChange: true
+        safeModify: true
+        mustChange: false
+        minAge: 0
+        maxFailure: 5
+        failureCountInterval: 300
+        lockout: true
+        lockoutDuration: 900
+        maxAge: 7776000
+        expireWarning: 1209600
+        graceAuthNLimit: 3
+
+    unique:
+      enabled: false
+      uris: "ldap:///?uid?sub ldap:///?mail?sub"
+
+    memberof:
+      enabled: false
+      groupObjectClass: groupOfNames
+      memberAttribute: member
+      memberOfAttribute: memberOf
+      addCheck: true
+      dangling: ignore
+
+    replication:
+      mode: auto
+      hosts: []
+      syncprovCheckpoint: "100 10"
+      dataReadonlyDnPrefix: "cn=replicator"
+      dataReadonlyPassword: ""
+      protocol: ldap
+      tls:
+        enabled: false
+        syncRepl: "starttls=critical tls_reqcert=demand"
 
 persistence:
   enabled: true
@@ -172,10 +211,17 @@ persistence:
   backups:
     size: 8Gi
 
+customModulesVolume: {}
+customSchemasVolume: {}
+
+bootstrapCustomConfigLdifVolume: {}
+bootstrapCustomDataLdifVolume: {}
+
 extraVolumes: []
 extraVolumeMounts: []
 
 livenessProbe:
+  enabled: true
   tcpSocket:
     port: ldap
   initialDelaySeconds: 30
@@ -184,6 +230,7 @@ livenessProbe:
   failureThreshold: 6
 
 readinessProbe:
+  enabled: true
   tcpSocket:
     port: ldap
   initialDelaySeconds: 10

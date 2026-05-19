@@ -1,12 +1,18 @@
 OpenLDAP has been deployed.
+{{- if .Values.openldap.protocols.ldap.enabled }}
 
 LDAP service:
-  {{ include "openldap.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.ldapPort }}
+  {{ include "openldap.fullname" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}:{{ .Values.service.ldapPort }}
+{{- end }}
+{{- if .Values.openldap.protocols.ldaps.enabled }}
 
 LDAPS service:
-  {{ include "openldap.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.ldapsPort }}
+  {{ include "openldap.fullname" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}:{{ .Values.service.ldapsPort }}
+{{- end }}
+{{- if .Values.openldap.protocols.ldap.enabled }}
 
 Example search from inside the cluster:
-  ldapsearch -H ldap://{{ include "openldap.fullname" . }}:{{ .Values.service.ldapPort }} -b "{{ .Values.bootstrap.suffix }}" "(objectClass=*)"
+  ldapsearch -H ldap://{{ include "openldap.fullname" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}:{{ .Values.service.ldapPort }} -b "{{ .Values.openldap.bootstrap.suffix }}" "(objectClass=*)"
+{{- end }}
 
 Bootstrap only runs when the config and data volumes are empty.

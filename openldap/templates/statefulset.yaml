@@ -43,8 +43,6 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
-            - -x
-            - openldap-bootstrap
             - --skip-process
           {{- with .Values.securityContext }}
           securityContext:
@@ -53,10 +51,18 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "openldap.fullname" . }}-env
-            - configMapRef:
-                name: {{ include "openldap.fullname" . }}-bootstrap-env
-          {{- if and $replicationEnabled .Values.bootstrap.replication.autoConfigure }}
+            - secretRef:
+                name: {{ include "openldap.fullname" . }}-bootstrap-secret
+            {{- if .Values.bootstrapEnvSecret.existingSecret }}
+            - secretRef:
+                name: {{ .Values.bootstrapEnvSecret.existingSecret }}
+            {{- else if .Values.bootstrapEnvSecret.env }}
+            - secretRef:
+                name: {{ include "openldap.bootstrapEnvSecretName" . }}
+            {{- end }}
+          {{- if or (and $replicationEnabled (not .Values.openldap.bootstrap.replication.hosts)) .Values.extraEnv }}
           env:
+            {{- if and $replicationEnabled (not .Values.openldap.bootstrap.replication.hosts) }}
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -69,8 +75,12 @@ spec:
               value: {{ include "openldap.fullname" . }}-headless
             - name: OPENLDAP_URLS
               value: {{ include "openldap.podUrls" . | quote }}
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           {{- end }}
-          {{- with .Values.bootstrap.resources }}
+          {{- with .Values.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
@@ -81,32 +91,41 @@ spec:
               mountPath: /var/lib/openldap/openldap-data
             - name: backups
               mountPath: /var/lib/openldap/openldap-backups
-            {{- if .Values.bootstrap.tls.enabled }}
+            {{- if not (empty .Values.tlsSecret.existingSecret) }}
             - name: tls
               mountPath: /container/services/openldap/assets/certs
               readOnly: true
             {{- end }}
-            {{- if .Values.openldap.customModules.enabled }}
+            {{- if not (empty .Values.customModulesVolume) }}
             - name: custom-modules
               mountPath: /container/services/openldap/assets/module
               readOnly: true
             {{- end }}
-            {{- if .Values.openldap.customSchemas.enabled }}
+            {{- if not (empty .Values.customSchemasVolume) }}
             - name: custom-schemas
               mountPath: /container/services/openldap/assets/schema
+              readOnly: true
+            {{- end }}
+            {{- if not (empty .Values.bootstrapCustomConfigLdifVolume) }}
+            - name: bootstrap-custom-config-ldif
+              mountPath: /container/services/openldap-bootstrap/assets/ldif/config/custom
+              readOnly: true
+            {{- end }}
+            {{- if not (empty .Values.bootstrapCustomDataLdifVolume) }}
+            - name: bootstrap-custom-data-ldif
+              mountPath: /container/services/openldap-bootstrap/assets/ldif/data/custom
               readOnly: true
             {{- end }}
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-        {{- if .Values.preUpgrade.enabled }}
+        {{- if .Values.openldap.preUpgrade.enabled }}
         - name: openldap-pre-upgrade
           image: "{{ include "openldap.preUpgradeImage" . }}"
-          imagePullPolicy: {{ .Values.preUpgrade.image.pullPolicy }}
+          imagePullPolicy: {{ .Values.previousImage.pullPolicy }}
           args:
-            - -x
+            - --exec
             - openldap-pre-upgrade
-            - --skip-process
           {{- with .Values.securityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
@@ -117,76 +136,8 @@ spec:
             - secretRef:
                 name: {{ include "openldap.secretName" . }}
                 optional: true
-          {{- with .Values.preUpgrade.resources }}
-          resources:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          volumeMounts:
-            - name: conf
-              mountPath: /etc/openldap/slapd.d
-            - name: data
-              mountPath: /var/lib/openldap/openldap-data
-            - name: backups
-              mountPath: /var/lib/openldap/openldap-backups
-            {{- if .Values.openldap.customModules.enabled }}
-            - name: custom-modules
-              mountPath: /container/services/openldap/assets/module
-              readOnly: true
-            {{- end }}
-            {{- if .Values.openldap.customSchemas.enabled }}
-            - name: custom-schemas
-              mountPath: /container/services/openldap/assets/schema
-              readOnly: true
-            {{- end }}
-            {{- with .Values.extraVolumeMounts }}
-            {{- toYaml . | nindent 12 }}
-            {{- end }}
-        {{- end }}
-      containers:
-        - name: openldap
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- with .Values.securityContext }}
-          securityContext:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          ports:
-            - name: ldap
-              containerPort: {{ .Values.containerPorts.ldap }}
-              protocol: TCP
-            - name: ldaps
-              containerPort: {{ .Values.containerPorts.ldaps }}
-              protocol: TCP
-          envFrom:
-            - configMapRef:
-                name: {{ include "openldap.fullname" . }}-env
-            - secretRef:
-                name: {{ include "openldap.secretName" . }}
-                optional: true
-          env:
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: HEADLESS_SERVICE_NAME
-              value: {{ include "openldap.fullname" . }}-headless
-            {{- if and $replicationEnabled .Values.bootstrap.replication.autoConfigure }}
-            - name: OPENLDAP_URLS
-              value: {{ include "openldap.podUrls" . | quote }}
-            {{- end }}
           {{- with .Values.extraEnv }}
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.livenessProbe }}
-          livenessProbe:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.readinessProbe }}
-          readinessProbe:
+          env:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- with .Values.resources }}
@@ -200,17 +151,101 @@ spec:
               mountPath: /var/lib/openldap/openldap-data
             - name: backups
               mountPath: /var/lib/openldap/openldap-backups
-            {{- if .Values.bootstrap.tls.enabled }}
+            {{- if not (empty .Values.tlsSecret.existingSecret) }}
             - name: tls
               mountPath: /container/services/openldap/assets/certs
               readOnly: true
             {{- end }}
-            {{- if .Values.openldap.customModules.enabled }}
+            {{- if not (empty .Values.customModulesVolume) }}
             - name: custom-modules
               mountPath: /container/services/openldap/assets/module
               readOnly: true
             {{- end }}
-            {{- if .Values.openldap.customSchemas.enabled }}
+            {{- if not (empty .Values.customSchemasVolume) }}
+            - name: custom-schemas
+              mountPath: /container/services/openldap/assets/schema
+              readOnly: true
+            {{- end }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+        {{- end }}
+      containers:
+        - name: openldap
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - --skip
+            - openldap-bootstrap
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            {{- if .Values.openldap.protocols.ldap.enabled }}
+            - name: ldap
+              containerPort: {{ .Values.openldap.protocols.ldap.port }}
+              protocol: TCP
+            {{- end }}
+            {{- if .Values.openldap.protocols.ldaps.enabled }}
+            - name: ldaps
+              containerPort: {{ .Values.openldap.protocols.ldaps.port }}
+              protocol: TCP
+            {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "openldap.fullname" . }}-env
+            - secretRef:
+                name: {{ include "openldap.secretName" . }}
+                optional: true
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: HEADLESS_SERVICE_NAME
+              value: {{ include "openldap.fullname" . }}-headless
+            {{- if and $replicationEnabled (not .Values.openldap.bootstrap.replication.hosts) }}
+            - name: OPENLDAP_URLS
+              value: {{ include "openldap.podUrls" . | quote }}
+            {{- end }}
+          {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.livenessProbe.enabled }}
+          livenessProbe:
+            {{- toYaml (omit .Values.livenessProbe "enabled") | nindent 12 }}
+          {{- end }}
+          {{- if .Values.readinessProbe.enabled }}
+          readinessProbe:
+            {{- toYaml (omit .Values.readinessProbe "enabled") | nindent 12 }}
+          {{- end }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: conf
+              mountPath: /etc/openldap/slapd.d
+            - name: data
+              mountPath: /var/lib/openldap/openldap-data
+            - name: backups
+              mountPath: /var/lib/openldap/openldap-backups
+            {{- if not (empty .Values.tlsSecret.existingSecret) }}
+            - name: tls
+              mountPath: /container/services/openldap/assets/certs
+              readOnly: true
+            {{- end }}
+            {{- if not (empty .Values.customModulesVolume) }}
+            - name: custom-modules
+              mountPath: /container/services/openldap/assets/module
+              readOnly: true
+            {{- end }}
+            {{- if not (empty .Values.customSchemasVolume) }}
             - name: custom-schemas
               mountPath: /container/services/openldap/assets/schema
               readOnly: true
@@ -224,7 +259,7 @@ spec:
       {{- end }}
       {{- if .Values.affinity }}
       affinity:
-        {{- toYaml . | nindent 8 }}
+        {{- toYaml .Values.affinity | nindent 8 }}
       {{- else if and $replicationEnabled .Values.podAntiAffinity.enabled }}
       affinity:
         {{- include "openldap.podAntiAffinity" . | nindent 8 }}
@@ -233,7 +268,7 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if or .Values.bootstrap.tls.enabled .Values.openldap.customModules.enabled .Values.openldap.customSchemas.enabled .Values.extraVolumes (not .Values.persistence.enabled) }}
+      {{- if or (not (empty .Values.tlsSecret.existingSecret)) (not (empty .Values.customModulesVolume)) (not (empty .Values.customSchemasVolume)) (not (empty .Values.bootstrapCustomConfigLdifVolume)) (not (empty .Values.bootstrapCustomDataLdifVolume)) .Values.extraVolumes (not .Values.persistence.enabled) }}
       volumes:
         {{- if not .Values.persistence.enabled }}
         - name: conf
@@ -243,25 +278,33 @@ spec:
         - name: backups
           emptyDir: {}
         {{- end }}
-        {{- if .Values.bootstrap.tls.enabled }}
+        {{- if not (empty .Values.tlsSecret.existingSecret) }}
         - name: tls
           secret:
             secretName: {{ include "openldap.tlsSecretName" . }}
             items:
-              - key: {{ .Values.bootstrap.tls.certKey }}
+              - key: {{ .Values.tlsSecret.keys.cert }}
                 path: tls.crt
-              - key: {{ .Values.bootstrap.tls.privateKeyKey }}
+              - key: {{ .Values.tlsSecret.keys.key }}
                 path: tls.key
-              - key: {{ .Values.bootstrap.tls.caKey }}
+              - key: {{ .Values.tlsSecret.keys.ca }}
                 path: ca.crt
         {{- end }}
-        {{- if .Values.openldap.customModules.enabled }}
+        {{- if not (empty .Values.customModulesVolume) }}
         - name: custom-modules
-          {{- toYaml .Values.openldap.customModules.volume | nindent 10 }}
+          {{- toYaml .Values.customModulesVolume | nindent 10 }}
         {{- end }}
-        {{- if .Values.openldap.customSchemas.enabled }}
+        {{- if not (empty .Values.customSchemasVolume) }}
         - name: custom-schemas
-          {{- toYaml .Values.openldap.customSchemas.volume | nindent 10 }}
+          {{- toYaml .Values.customSchemasVolume | nindent 10 }}
+        {{- end }}
+        {{- if not (empty .Values.bootstrapCustomConfigLdifVolume) }}
+        - name: bootstrap-custom-config-ldif
+          {{- toYaml .Values.bootstrapCustomConfigLdifVolume | nindent 10 }}
+        {{- end }}
+        {{- if not (empty .Values.bootstrapCustomDataLdifVolume) }}
+        - name: bootstrap-custom-data-ldif
+          {{- toYaml .Values.bootstrapCustomDataLdifVolume | nindent 10 }}
         {{- end }}
         {{- with .Values.extraVolumes }}
         {{- toYaml . | nindent 8 }}

@@ -21,6 +21,10 @@ spec:
         spec:
           restartPolicy: OnFailure
           serviceAccountName: {{ include "openldap.serviceAccountName" . }}
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with .Values.podSecurityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
@@ -37,6 +41,10 @@ spec:
                 - secretRef:
                     name: {{ include "openldap.secretName" . }}
                     optional: true
+              {{- with .Values.extraEnv }}
+              env:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
               {{- with .Values.backupCronJob.resources }}
               resources:
                 {{- toYaml . | nindent 16 }}
