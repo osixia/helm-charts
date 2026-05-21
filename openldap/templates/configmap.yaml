@@ -1,6 +1,17 @@
 {{- $replicationEnabled := eq (include "openldap.replicationEnabled" .) "true" -}}
+{{- $replicationMode := .Values.openldap.bootstrap.replication.mode -}}
 {{- if and $replicationEnabled (not .Values.openldap.bootstrap.replication.hosts) (lt (int .Values.replicaCount) 2) }}
 {{- fail "bootstrap.replication.mode=enabled requires replicaCount >= 2 or bootstrap.replication.hosts" }}
+{{- end }}
+{{- if and .Release.IsUpgrade .Values.persistence.enabled (not .Values.openldap.bootstrap.replication.allowReplicaCountChange) (not .Values.openldap.bootstrap.replication.hosts) (ne $replicationMode "disabled") }}
+{{- $statefulSet := lookup "apps/v1" "StatefulSet" .Release.Namespace (include "openldap.fullname" .) }}
+{{- if $statefulSet }}
+{{- $existingReplicas := int (default 1 $statefulSet.spec.replicas) }}
+{{- $requestedReplicas := int .Values.replicaCount }}
+{{- if and (ne $existingReplicas $requestedReplicas) (or (gt $existingReplicas 1) (gt $requestedReplicas 1) (eq $replicationMode "enabled")) }}
+{{- fail (printf "Changing replicaCount from %d to %d with auto-generated bootstrap replication and persistence enabled is unsafe after initial bootstrap. Keep replicaCount unchanged, or manually migrate OpenLDAP replication config and set openldap.bootstrap.replication.allowReplicaCountChange=true." $existingReplicas $requestedReplicas) }}
+{{- end }}
+{{- end }}
 {{- end }}
 {{- if $replicationEnabled }}
 {{- $protocol := .Values.openldap.bootstrap.replication.protocol }}

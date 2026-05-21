@@ -217,6 +217,22 @@ ldap://<release>-0.<release>-headless.<namespace>.svc.cluster.local:3890
 ldap://<release>-1.<release>-headless.<namespace>.svc.cluster.local:3890
 ```
 
+With persistence enabled, the bootstrap replication topology is written into the
+OpenLDAP config database on disk. Changing `replicaCount` later can leave old
+pods with the previous peer list while new pods are bootstrapped with the new
+one. For that reason, upgrades fail by default when `replicaCount` changes with
+auto-generated replication hosts.
+
+If you have manually migrated the OpenLDAP replication config on all existing
+pods, you can opt out of this guard:
+
+```yaml
+openldap:
+  bootstrap:
+    replication:
+      allowReplicaCountChange: true
+```
+
 Override the host list if your cluster domain differs or you need custom endpoints:
 
 ```yaml
@@ -350,27 +366,46 @@ customSchemasVolume:
     name: my-ldap-schemas
 ```
 
-### Bootstrap LDIF — config
+### Bootstrap LDIF
 
-Mounted at `/container/services/openldap-bootstrap/assets/ldif/config/custom`
-in the **bootstrap init container only**.
+Bootstrap LDIF volumes are mounted only in the **bootstrap init container**:
+
+| Value | Mount path |
+|---|---|
+| `bootstrapCustomConfigLdifVolume` | `/container/services/openldap-bootstrap/assets/ldif/config/custom` |
+| `bootstrapCustomDataLdifVolume` | `/container/services/openldap-bootstrap/assets/ldif/data/custom` |
+
+Create ConfigMaps from local directories containing LDIF files:
+
+```bash
+kubectl create configmap my-ldap-config-ldif \
+  --from-file=./ldif/config \
+  -n <namespace>
+
+kubectl create configmap my-ldap-data-ldif \
+  --from-file=./ldif/data \
+  -n <namespace>
+```
+
+Then mount them during bootstrap:
 
 ```yaml
 bootstrapCustomConfigLdifVolume:
   configMap:
     name: my-ldap-config-ldif
-```
 
-### Bootstrap LDIF — data
-
-Mounted at `/container/services/openldap-bootstrap/assets/ldif/data/custom`
-in the **bootstrap init container only**.
-
-```yaml
 bootstrapCustomDataLdifVolume:
   configMap:
     name: my-ldap-data-ldif
 ```
+
+Each file directly inside the source directory becomes one ConfigMap key and is
+mounted as a file. `kubectl create configmap --from-file=./dir` does not load
+files recursively from nested directories.
+
+Bootstrap LDIF files are applied only when the OpenLDAP config/data volumes are
+empty. With persistence enabled, updating these ConfigMaps after the first
+successful bootstrap does not automatically reapply the LDIF files.
 
 ### Extra volumes
 
@@ -663,6 +698,7 @@ Remove `previousImage.tag` after the upgrade completes.
 | `openldap.bootstrap.tls.verifyClient` | `allow` | `olcTLSVerifyClient` value |
 | `openldap.bootstrap.tls.protocolMin` | `3.4` | `olcTLSProtocolMin` value |
 | `openldap.bootstrap.replication.mode` | `auto` | `auto` / `enabled` / `disabled` |
+| `openldap.bootstrap.replication.allowReplicaCountChange` | `false` | Allow unsafe `replicaCount` changes after bootstrap when hosts are auto-generated |
 | `openldap.bootstrap.replication.protocol` | `ldap` | Replication protocol (`ldap` / `ldaps`) |
 | `openldap.bootstrap.replication.hosts` | `[]` | Override replication host list |
 | `openldap.bootstrap.replication.syncprovCheckpoint` | `100 10` | syncprov checkpoint |

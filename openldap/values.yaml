@@ -190,6 +190,7 @@ openldap:
 
     replication:
       mode: auto
+      allowReplicaCountChange: false
       hosts: []
       syncprovCheckpoint: "100 10"
       dataReadonlyDnPrefix: "cn=replicator"
