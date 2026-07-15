@@ -12,8 +12,3 @@ keywords:
   - openldap
 maintainers:
   - name: osixia
-dependencies:
-  - name: phpldapadmin
-    version: "0.1.0"
-    repository: "file://../phpldapadmin"
-    condition: phpldapadmin.enabled

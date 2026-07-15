@@ -16,9 +16,3 @@ Example search from inside the cluster:
 {{- end }}
 
 Bootstrap only runs when the config and data volumes are empty.
-{{- if index .Values "phpldapadmin" "enabled" }}
-
-phpLDAPadmin:
-  kubectl port-forward svc/{{ .Release.Name }}-phpldapadmin 8080:80 -n {{ .Release.Namespace }}
-  Then open: http://localhost:8080
-{{- end }}
