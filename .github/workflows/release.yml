@@ -30,3 +30,15 @@ jobs:
           charts_dir: .
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Set custom domain for GitHub Pages
+        run: |
+          git fetch origin gh-pages
+          git worktree add /tmp/gh-pages origin/gh-pages
+          echo "charts.opensource.osixia.net" > /tmp/gh-pages/CNAME
+          cd /tmp/gh-pages
+          git add CNAME
+          if ! git diff --cached --quiet; then
+            git commit -m "Set custom domain"
+            git push origin HEAD:gh-pages
+          fi
