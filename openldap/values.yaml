@@ -1,4 +1,7 @@
 replicaCount: 1
+revisionHistoryLimit: 10
+
+automountServiceAccountToken: false
 
 clusterDomain: cluster.local
 
@@ -46,6 +49,7 @@ resources: {}
 nodeSelector: {}
 tolerations: []
 affinity: {}
+priorityClassName: ""
 
 podAntiAffinity:
   enabled: true
@@ -220,6 +224,7 @@ bootstrapCustomDataLdifVolume: {}
 
 extraVolumes: []
 extraVolumeMounts: []
+topologySpreadConstraints: []
 
 livenessProbe:
   enabled: true
@@ -238,6 +243,20 @@ readinessProbe:
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 6
+
+startupProbe:
+  enabled: false
+  tcpSocket:
+    port: ldap
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 30
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+  maxUnavailable: ""
 
 backupCronJob:
   enabled: false

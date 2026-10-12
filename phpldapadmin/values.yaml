@@ -1,4 +1,10 @@
 replicaCount: 1
+revisionHistoryLimit: 10
+
+strategy: {}
+
+terminationGracePeriodSeconds: 30
+automountServiceAccountToken: false
 
 image:
   repository: phpldapadmin/phpldapadmin
@@ -16,6 +22,13 @@ serviceAccount:
 
 podAnnotations: {}
 podLabels: {}
+
+extraVolumes: []
+extraVolumeMounts: []
+extraEnv: []
+extraEnvFrom: []
+initContainers: []
+topologySpreadConstraints: []
 
 podSecurityContext: {}
 
@@ -51,6 +64,7 @@ resources: {}
 nodeSelector: {}
 tolerations: []
 affinity: {}
+priorityClassName: ""
 
 livenessProbe:
   enabled: true
@@ -71,6 +85,21 @@ readinessProbe:
   periodSeconds: 10
   timeoutSeconds: 5
   failureThreshold: 6
+
+startupProbe:
+  enabled: false
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 30
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+  maxUnavailable: ""
 
 app:
   # Laravel encryption key — auto-generated and stable across upgrades if left empty.

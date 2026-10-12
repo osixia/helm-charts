@@ -2,7 +2,7 @@ apiVersion: v2
 name: phpldapadmin
 description: phpLDAPadmin web-based LDAP administration tool.
 type: application
-version: 0.1.0
+version: 0.2.0
 appVersion: "2.3.11"
 home: https://github.com/leenooks/phpLDAPadmin
 sources:

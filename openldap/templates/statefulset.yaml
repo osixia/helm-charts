@@ -8,6 +8,7 @@ metadata:
 spec:
   serviceName: {{ include "openldap.fullname" . }}-headless
   replicas: {{ .Values.replicaCount }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
   {{- if $replicationEnabled }}
   podManagementPolicy: Parallel
   {{- end }}
@@ -29,7 +30,11 @@ spec:
       {{- end }}
     spec:
       serviceAccountName: {{ include "openldap.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.automountServiceAccountToken }}
       terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . | quote }}
+      {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -224,6 +229,10 @@ spec:
           readinessProbe:
             {{- toYaml (omit .Values.readinessProbe "enabled") | nindent 12 }}
           {{- end }}
+          {{- if .Values.startupProbe.enabled }}
+          startupProbe:
+            {{- toYaml (omit .Values.startupProbe "enabled") | nindent 12 }}
+          {{- end }}
           {{- with .Values.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
@@ -266,6 +275,10 @@ spec:
       {{- end }}
       {{- with .Values.tolerations }}
       tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- if or (not (empty .Values.tlsSecret.existingSecret)) (not (empty .Values.customModulesVolume)) (not (empty .Values.customSchemasVolume)) (not (empty .Values.bootstrapCustomConfigLdifVolume)) (not (empty .Values.bootstrapCustomDataLdifVolume)) .Values.extraVolumes (not .Values.persistence.enabled) }}
