@@ -156,6 +156,7 @@ openldap:
     refint:
       enabled: false
       attributes: "member uniqueMember manager owner"
+      nothingDnPrefix: ""
 
     ppolicy:
       enabled: false

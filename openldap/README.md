@@ -301,7 +301,11 @@ openldap:
     refint:
       enabled: true
       attributes: "member uniqueMember manager owner"
+      nothingDnPrefix: "cn=empty-group"
 ```
+
+`nothingDnPrefix` is combined with the configured LDAP suffix to create the
+passwordless replacement role. An empty prefix (the default) disables it.
 
 ### MemberOf
 
