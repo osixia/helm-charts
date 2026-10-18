@@ -1,6 +1,6 @@
 {{- if .Values.backupCronJob.enabled }}
-{{- if not .Values.persistence.enabled }}
-{{- fail "backupCronJob.enabled requires persistence.enabled=true because the backup job mounts StatefulSet PVCs" }}
+{{- if and (not .Values.persistence.enabled) (or (empty .Values.persistence.conf.volume) (empty .Values.persistence.data.volume) (empty .Values.persistence.backups.volume)) }}
+{{- fail "backupCronJob.enabled requires persistence.enabled=true or custom volumes for conf, data and backups" }}
 {{- end }}
 apiVersion: batch/v1
 kind: CronJob
@@ -57,13 +57,13 @@ spec:
                 - name: backups
                   mountPath: /var/lib/openldap/openldap-backups
           volumes:
-            - name: conf
+            {{- range $name := list "conf" "data" "backups" }}
+            - name: {{ $name }}
+              {{- with (index $.Values.persistence $name).volume }}
+              {{- toYaml . | nindent 14 }}
+              {{- else }}
               persistentVolumeClaim:
-                claimName: conf-{{ include "openldap.fullname" . }}-0
-            - name: data
-              persistentVolumeClaim:
-                claimName: data-{{ include "openldap.fullname" . }}-0
-            - name: backups
-              persistentVolumeClaim:
-                claimName: backups-{{ include "openldap.fullname" . }}-0
+                claimName: {{ $name }}-{{ include "openldap.fullname" $ }}-0
+              {{- end }}
+            {{- end }}
 {{- end }}

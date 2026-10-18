@@ -147,6 +147,10 @@ openldap:
         dnPrefix: "cn=readonly-monitor"
         passwordHashed: ""
 
+    auditlog:
+      enabled: false
+      file: /var/log/openldap/audit.ldif
+
     tls:
       enabled: false
       required: false
@@ -212,10 +216,16 @@ persistence:
   storageClass: ""
   conf:
     size: 1Gi
+    volume: {}
   data:
     size: 8Gi
+    volume: {}
   backups:
     size: 8Gi
+    volume: {}
+  auditlog:
+    size: 1Gi
+    volume: {}
 
 customModulesVolume: {}
 customSchemasVolume: {}

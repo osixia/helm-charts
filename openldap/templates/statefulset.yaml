@@ -1,4 +1,19 @@
 {{- $replicationEnabled := eq (include "openldap.replicationEnabled" .) "true" -}}
+{{- $storage := dict "conf" .Values.persistence.conf "data" .Values.persistence.data "backups" .Values.persistence.backups -}}
+{{- if .Values.openldap.bootstrap.auditlog.enabled -}}
+{{- $_ := set $storage "auditlog" .Values.persistence.auditlog -}}
+{{- end -}}
+{{- $storageVolumes := dict -}}
+{{- $claims := dict -}}
+{{- range $name, $settings := $storage -}}
+{{- if $settings.volume -}}
+{{- $_ := set $storageVolumes $name $settings.volume -}}
+{{- else if $.Values.persistence.enabled -}}
+{{- $_ := set $claims $name $settings -}}
+{{- else -}}
+{{- $_ := set $storageVolumes $name (dict "emptyDir" (dict)) -}}
+{{- end -}}
+{{- end -}}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -96,6 +111,10 @@ spec:
               mountPath: /var/lib/openldap/openldap-data
             - name: backups
               mountPath: /var/lib/openldap/openldap-backups
+            {{- if .Values.openldap.bootstrap.auditlog.enabled }}
+            - name: auditlog
+              mountPath: {{ dir .Values.openldap.bootstrap.auditlog.file | quote }}
+            {{- end }}
             {{- if not (empty .Values.tlsSecret.existingSecret) }}
             - name: tls
               mountPath: /container/services/openldap/assets/certs
@@ -156,6 +175,10 @@ spec:
               mountPath: /var/lib/openldap/openldap-data
             - name: backups
               mountPath: /var/lib/openldap/openldap-backups
+            {{- if .Values.openldap.bootstrap.auditlog.enabled }}
+            - name: auditlog
+              mountPath: {{ dir .Values.openldap.bootstrap.auditlog.file | quote }}
+            {{- end }}
             {{- if not (empty .Values.tlsSecret.existingSecret) }}
             - name: tls
               mountPath: /container/services/openldap/assets/certs
@@ -244,6 +267,10 @@ spec:
               mountPath: /var/lib/openldap/openldap-data
             - name: backups
               mountPath: /var/lib/openldap/openldap-backups
+            {{- if .Values.openldap.bootstrap.auditlog.enabled }}
+            - name: auditlog
+              mountPath: {{ dir .Values.openldap.bootstrap.auditlog.file | quote }}
+            {{- end }}
             {{- if not (empty .Values.tlsSecret.existingSecret) }}
             - name: tls
               mountPath: /container/services/openldap/assets/certs
@@ -281,15 +308,13 @@ spec:
       topologySpreadConstraints:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if or (not (empty .Values.tlsSecret.existingSecret)) (not (empty .Values.customModulesVolume)) (not (empty .Values.customSchemasVolume)) (not (empty .Values.bootstrapCustomConfigLdifVolume)) (not (empty .Values.bootstrapCustomDataLdifVolume)) .Values.extraVolumes (not .Values.persistence.enabled) }}
+      {{- if or (not (empty .Values.tlsSecret.existingSecret)) (not (empty .Values.customModulesVolume)) (not (empty .Values.customSchemasVolume)) (not (empty .Values.bootstrapCustomConfigLdifVolume)) (not (empty .Values.bootstrapCustomDataLdifVolume)) .Values.extraVolumes $storageVolumes }}
       volumes:
-        {{- if not .Values.persistence.enabled }}
-        - name: conf
-          emptyDir: {}
-        - name: data
-          emptyDir: {}
-        - name: backups
-          emptyDir: {}
+        {{- range $name := list "conf" "data" "backups" "auditlog" }}
+        {{- with index $storageVolumes $name }}
+        - name: {{ $name }}
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         {{- end }}
         {{- if not (empty .Values.tlsSecret.existingSecret) }}
         - name: tls
@@ -323,45 +348,23 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       {{- end }}
-{{- if .Values.persistence.enabled }}
+{{- if $claims }}
   volumeClaimTemplates:
+    {{- range $name := list "conf" "data" "backups" "auditlog" }}
+    {{- with index $claims $name }}
     - metadata:
-        name: conf
+        name: {{ $name }}
         labels:
-          {{- include "openldap.labels" . | nindent 10 }}
+          {{- include "openldap.labels" $ | nindent 10 }}
       spec:
         accessModes:
-          {{- toYaml .Values.persistence.accessModes | nindent 10 }}
-        {{- if .Values.persistence.storageClass }}
-        storageClassName: {{ .Values.persistence.storageClass | quote }}
+          {{- toYaml $.Values.persistence.accessModes | nindent 10 }}
+        {{- if $.Values.persistence.storageClass }}
+        storageClassName: {{ $.Values.persistence.storageClass | quote }}
         {{- end }}
         resources:
           requests:
-            storage: {{ .Values.persistence.conf.size }}
-    - metadata:
-        name: data
-        labels:
-          {{- include "openldap.labels" . | nindent 10 }}
-      spec:
-        accessModes:
-          {{- toYaml .Values.persistence.accessModes | nindent 10 }}
-        {{- if .Values.persistence.storageClass }}
-        storageClassName: {{ .Values.persistence.storageClass | quote }}
-        {{- end }}
-        resources:
-          requests:
-            storage: {{ .Values.persistence.data.size }}
-    - metadata:
-        name: backups
-        labels:
-          {{- include "openldap.labels" . | nindent 10 }}
-      spec:
-        accessModes:
-          {{- toYaml .Values.persistence.accessModes | nindent 10 }}
-        {{- if .Values.persistence.storageClass }}
-        storageClassName: {{ .Values.persistence.storageClass | quote }}
-        {{- end }}
-        resources:
-          requests:
-            storage: {{ .Values.persistence.backups.size }}
+            storage: {{ .size }}
+    {{- end }}
+    {{- end }}
 {{- end }}

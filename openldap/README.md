@@ -161,13 +161,14 @@ container (init, pre-upgrade, main).
 
 ## Persistence
 
-Persistence is enabled by default. Three PVCs are created per pod:
+By default, PVCs are created per pod, plus an audit PVC when auditing is enabled:
 
 | PVC prefix | Mount path | Default size |
 |---|---|---|
 | `conf-<release>-0` | `/etc/openldap/slapd.d` | 1 Gi |
 | `data-<release>-0` | `/var/lib/openldap/openldap-data` | 8 Gi |
 | `backups-<release>-0` | `/var/lib/openldap/openldap-backups` | 8 Gi |
+| `auditlog-<release>-0` | Parent of `openldap.bootstrap.auditlog.file` | 1 Gi |
 
 ```yaml
 persistence:
@@ -181,9 +182,25 @@ persistence:
     size: 8Gi
   backups:
     size: 8Gi
+  auditlog:
+    size: 1Gi
 ```
 
-Disable persistence (all data lost on restart — for testing only):
+Set `persistence.<conf|data|backups|auditlog>.volume` to use a Kubernetes volume source instead of the generated PVC:
+
+```yaml
+persistence:
+  data:
+    volume:
+      persistentVolumeClaim:
+        claimName: my-ldap-data
+```
+
+An empty `volume` uses a generated PVC, or `emptyDir` when persistence is disabled.
+Custom volumes are reused as given by every replica and the backup CronJob.
+Audit rotation and remote collection are managed by the deployment.
+
+Use `emptyDir` for volumes without a custom source (for testing):
 
 ```yaml
 persistence:
@@ -490,9 +507,8 @@ If `existingSecret` is empty no secret is mounted. The secret is loaded with
 
 ## Backup CronJob
 
-The backup CronJob is disabled by default. It mounts the same PVCs as the
-StatefulSet (requires `persistence.enabled: true`) and runs `openldap-ctl backup`
-on a schedule.
+The backup CronJob is disabled by default. It reuses the StatefulSet volumes
+(generated PVCs or custom sources) and runs `openldap-ctl backup` on a schedule.
 
 ```yaml
 backupCronJob:
@@ -659,6 +675,8 @@ Remove `previousImage.tag` after the upgrade completes.
 | `persistence.conf.size` | `1Gi` | Config PVC size |
 | `persistence.data.size` | `8Gi` | Data PVC size |
 | `persistence.backups.size` | `8Gi` | Backups PVC size |
+| `persistence.auditlog.size` | `1Gi` | Audit PVC size (when auditing is enabled) |
+| `persistence.<conf,data,backups,auditlog>.volume` | `{}` | Custom Kubernetes volume source; overrides generated storage |
 
 ### OpenLDAP
 
@@ -697,6 +715,8 @@ Remove `previousImage.tag` after the upgrade completes.
 | `openldap.bootstrap.database.readonly.passwordHashed` | `""` | Read-only account password hash |
 | `openldap.bootstrap.monitor.enabled` | `false` | Enable monitor backend |
 | `openldap.bootstrap.monitor.readonly.*` | — | Monitor read-only account |
+| `openldap.bootstrap.auditlog.enabled` | `false` | Log successful writes; module loaded automatically |
+| `openldap.bootstrap.auditlog.file` | `/var/log/openldap/audit.ldif` | Audit file; its parent directory is mounted as a volume |
 | `openldap.bootstrap.tls.enabled` | `false` | Configure TLS during bootstrap |
 | `openldap.bootstrap.tls.required` | `false` | Enforce TLS-only access |
 | `openldap.bootstrap.tls.verifyClient` | `allow` | `olcTLSVerifyClient` value |
