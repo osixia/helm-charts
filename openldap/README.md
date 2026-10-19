@@ -21,6 +21,10 @@ Helm chart for the [osixia/openldap](https://hub.docker.com/r/osixia/openldap) c
 
 ## ⚡ Quick start — 2 minutes
 
+The default image is `2.6.15-beta`. Last-bind tracking, inactivity limits, progressive
+lockouts, the new global request limits and TLS reload require an image containing
+the subsequent `develop` changes; set `image.tag` to that release when available.
+
 The only values you **must** change to have a working server:
 
 ```yaml
@@ -155,7 +159,9 @@ openldap:
 ```
 
 The secret is mounted at `/container/services/openldap/assets/certs/` in every
-container (init, pre-upgrade, main).
+container (init, pre-upgrade, main). Set `openldap.tlsReload.enabled=true` to add
+a watcher sidecar sharing the certificates and `/run/container`; it requests a
+slapd restart through the main supervisor when certificate contents change.
 
 ---
 
@@ -519,11 +525,12 @@ backupCronJob:
   command:
     - /bin/sh
     - -ec
-    - container run -- openldap-ctl backup "$(date -I)-${OPENLDAP_VERSION}-openldap-cron" --clean 15
+    - container run -- openldap-ctl backup "openldap-cron-$(date -I)-${OPENLDAP_VERSION}" --clean 15 --clean-prefix openldap-cron-
   resources: {}
 ```
 
-`--clean 15` removes backup files older than 15 days. Adjust or remove as needed.
+`--clean 15 --clean-prefix openldap-cron-` removes only scheduled backups older
+than 15 days, preserving manual and upgrade backups.
 
 Restore a backup manually:
 
@@ -579,7 +586,7 @@ Remove `previousImage.tag` after the upgrade completes.
 | `replicaCount` | `1` | Number of replicas |
 | `clusterDomain` | `cluster.local` | Kubernetes cluster domain, used to build pod FQDNs |
 | `image.repository` | `osixia/openldap` | Container image |
-| `image.tag` | `2.6.10-alpha` | Image tag |
+| `image.tag` | `2.6.15-beta` | Image tag |
 | `image.pullPolicy` | `IfNotPresent` | Pull policy |
 | `previousImage.repository` | `""` | Previous image repository (defaults to `image.repository`) |
 | `previousImage.tag` | `""` | Previous image tag — **required during upgrades** |
@@ -684,6 +691,8 @@ Remove `previousImage.tag` after the upgrade completes.
 |---|---|---|
 | `openldap.nofile` | `8192` | `ulimit -n` for slapd |
 | `openldap.debugLevel` | `256` | slapd debug level |
+| `openldap.tlsReload.enabled` | `false` | Enable TLS watcher sidecar; requires TLS |
+| `openldap.tlsReload.resources` | `{}` | TLS watcher sidecar resources |
 | `openldap.protocols.ldap.enabled` | `true` | Enable LDAP listener |
 | `openldap.protocols.ldap.port` | `3890` | Internal LDAP port |
 | `openldap.protocols.ldaps.enabled` | `true` | Enable LDAPS listener |
@@ -699,15 +708,22 @@ Remove `previousImage.tag` after the upgrade completes.
 |---|---|---|
 | `openldap.bootstrap.organization` | `Example Org` | Organization name |
 | `openldap.bootstrap.suffix` | `dc=example,dc=org` | Base DN suffix |
-| `openldap.bootstrap.modules` | see values.yaml | OpenLDAP modules loaded |
+| `openldap.bootstrap.modules` | `[]` | Use image defaults, or supply an ordered module list |
 | `openldap.bootstrap.schemas` | see values.yaml | LDIF schemas imported |
 | `openldap.bootstrap.global.sizeLimit` | `500` | Global size limit |
 | `openldap.bootstrap.global.timeLimit` | `120` | Global time limit |
 | `openldap.bootstrap.global.idleTimeout` | `3600` | Global idle timeout |
+| `openldap.bootstrap.global.writeTimeout` | `0` | Blocked network write timeout in seconds; 0 disables it |
+| `openldap.bootstrap.global.connMaxPending` | `100` | Pending requests per anonymous connection |
+| `openldap.bootstrap.global.connMaxPendingAuth` | `1000` | Pending requests per authenticated connection |
+| `openldap.bootstrap.global.sockbufMaxIncoming` | `262143` | Maximum anonymous LDAP message size in bytes |
+| `openldap.bootstrap.global.sockbufMaxIncomingAuth` | `4194303` | Maximum authenticated LDAP message size in bytes |
 | `openldap.bootstrap.frontend.passwordHash` | `{ARGON2}` | Default password hash scheme |
 | `openldap.bootstrap.config.rootDnPrefix` | `cn=admin` | Config root DN prefix (assembled: `<prefix>,cn=config`) |
 | `openldap.bootstrap.config.rootPasswordHashed` | `""` | Config root password hash |
 | `openldap.bootstrap.database.maxSize` | `10737418240` | MDB max size (bytes) |
+| `openldap.bootstrap.database.lastBind.enabled` | `false` | Track successful authentications in pwdLastSuccess |
+| `openldap.bootstrap.database.lastBind.precision` | `3600` | Minimum seconds between last-bind timestamp updates |
 | `openldap.bootstrap.database.rootDnPrefix` | `cn=admin` | Data root DN prefix |
 | `openldap.bootstrap.database.rootPasswordHashed` | `""` | Data root password hash |
 | `openldap.bootstrap.database.readonly.enabled` | `false` | Create read-only data account |
@@ -715,7 +731,11 @@ Remove `previousImage.tag` after the upgrade completes.
 | `openldap.bootstrap.database.readonly.passwordHashed` | `""` | Read-only account password hash |
 | `openldap.bootstrap.monitor.enabled` | `false` | Enable monitor backend |
 | `openldap.bootstrap.monitor.readonly.*` | — | Monitor read-only account |
-| `openldap.bootstrap.auditlog.enabled` | `false` | Log successful writes; module loaded automatically |
+| `openldap.bootstrap.auditlog.enabled` | `false` | Log successful writes |
+| `openldap.bootstrap.ppolicy.default.checkQuality` | `1` | Check password quality when possible |
+| `openldap.bootstrap.ppolicy.default.minDelay` | `0` | Initial progressive lockout in seconds; 0 disables it |
+| `openldap.bootstrap.ppolicy.default.maxDelay` | `0` | Progressive lockout cap; requires 0 < minDelay <= maxDelay and lockout=true |
+| `openldap.bootstrap.ppolicy.default.maxIdle` | `0` | Maximum inactivity in seconds; requires last-bind tracking and lockout=true |
 | `openldap.bootstrap.auditlog.file` | `/var/log/openldap/audit.ldif` | Audit file; its parent directory is mounted as a volume |
 | `openldap.bootstrap.tls.enabled` | `false` | Configure TLS during bootstrap |
 | `openldap.bootstrap.tls.required` | `false` | Enforce TLS-only access |

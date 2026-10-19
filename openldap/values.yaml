@@ -7,7 +7,7 @@ clusterDomain: cluster.local
 
 image:
   repository: osixia/openldap
-  tag: 2.6.10-alpha
+  tag: 2.6.15-beta
   pullPolicy: IfNotPresent
 
 previousImage:
@@ -83,6 +83,10 @@ openldap:
   nofile: "8192"
   debugLevel: "256"
 
+  tlsReload:
+    enabled: false
+    resources: {}
+
   protocols:
     ldap:
       enabled: true
@@ -104,14 +108,7 @@ openldap:
     organization: "Example Org"
     suffix: "dc=example,dc=org"
 
-    modules:
-      - back_mdb.so
-      - argon2.so
-      - ppolicy.so
-      - unique.so
-      - refint.so
-      - memberof.so
-      - syncprov.so
+    modules: []
 
     schemas:
       - core.ldif
@@ -123,6 +120,11 @@ openldap:
       sizeLimit: 500
       timeLimit: 120
       idleTimeout: 3600
+      writeTimeout: 0
+      connMaxPending: 100
+      connMaxPendingAuth: 1000
+      sockbufMaxIncoming: 262143
+      sockbufMaxIncomingAuth: 4194303
 
     frontend:
       passwordHash: "{ARGON2}"
@@ -133,6 +135,9 @@ openldap:
 
     database:
       maxSize: "10737418240"
+      lastBind:
+        enabled: false
+        precision: 3600
       rootDnPrefix: "cn=admin"
       rootPasswordHashed: ""
       readonly:
@@ -171,7 +176,7 @@ openldap:
       default:
         policyDnPrefix: "cn=default"
         minLength: 12
-        checkQuality: 0
+        checkQuality: 1
         inHistory: 12
         allowUserChange: true
         safeModify: true
@@ -181,7 +186,10 @@ openldap:
         failureCountInterval: 300
         lockout: true
         lockoutDuration: 900
+        minDelay: 0
+        maxDelay: 0
         maxAge: 7776000
+        maxIdle: 0
         expireWarning: 1209600
         graceAuthNLimit: 3
 
@@ -277,5 +285,5 @@ backupCronJob:
   command:
     - /bin/sh
     - -ec
-    - container run -- openldap-ctl backup "$(date -I)-${OPENLDAP_VERSION}-openldap-cron" --clean 15
+    - container run -- openldap-ctl backup "openldap-cron-$(date -I)-${OPENLDAP_VERSION}" --clean 15 --clean-prefix openldap-cron-
   resources: {}

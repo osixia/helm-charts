@@ -1,4 +1,7 @@
 {{- $replicationEnabled := eq (include "openldap.replicationEnabled" .) "true" -}}
+{{- if and .Values.openldap.tlsReload.enabled (not .Values.openldap.bootstrap.tls.enabled) }}
+{{- fail "openldap.tlsReload.enabled requires openldap.bootstrap.tls.enabled=true" }}
+{{- end }}
 {{- $replicationMode := .Values.openldap.bootstrap.replication.mode -}}
 {{- if and $replicationEnabled (not .Values.openldap.bootstrap.replication.hosts) (lt (int .Values.replicaCount) 2) }}
 {{- fail "bootstrap.replication.mode=enabled requires replicaCount >= 2 or bootstrap.replication.hosts" }}

@@ -261,6 +261,10 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           volumeMounts:
+            {{- if .Values.openldap.tlsReload.enabled }}
+            - name: runtime
+              mountPath: /run/container
+            {{- end }}
             - name: conf
               mountPath: /etc/openldap/slapd.d
             - name: data
@@ -289,6 +293,43 @@ spec:
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
+        {{- if .Values.openldap.tlsReload.enabled }}
+        - name: openldap-tls-reload
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - --exec
+            - openldap-tls-reload
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "openldap.fullname" . }}-env
+            - secretRef:
+                name: {{ include "openldap.secretName" . }}
+                optional: true
+          {{- with .Values.extraEnv }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.openldap.tlsReload.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: runtime
+              mountPath: /run/container
+            {{- if not (empty .Values.tlsSecret.existingSecret) }}
+            - name: tls
+              mountPath: /container/services/openldap/assets/certs
+              readOnly: true
+            {{- end }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -308,8 +349,12 @@ spec:
       topologySpreadConstraints:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if or (not (empty .Values.tlsSecret.existingSecret)) (not (empty .Values.customModulesVolume)) (not (empty .Values.customSchemasVolume)) (not (empty .Values.bootstrapCustomConfigLdifVolume)) (not (empty .Values.bootstrapCustomDataLdifVolume)) .Values.extraVolumes $storageVolumes }}
+      {{- if or .Values.openldap.tlsReload.enabled (not (empty .Values.tlsSecret.existingSecret)) (not (empty .Values.customModulesVolume)) (not (empty .Values.customSchemasVolume)) (not (empty .Values.bootstrapCustomConfigLdifVolume)) (not (empty .Values.bootstrapCustomDataLdifVolume)) .Values.extraVolumes $storageVolumes }}
       volumes:
+        {{- if .Values.openldap.tlsReload.enabled }}
+        - name: runtime
+          emptyDir: {}
+        {{- end }}
         {{- range $name := list "conf" "data" "backups" "auditlog" }}
         {{- with index $storageVolumes $name }}
         - name: {{ $name }}
