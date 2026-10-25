@@ -17,10 +17,27 @@ spec:
       template:
         metadata:
           labels:
-            {{- include "openldap.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/name: {{ include "openldap.name" . }}
+            app.kubernetes.io/instance: {{ printf "%s-backup" .Release.Name | quote }}
+            app.kubernetes.io/component: backup
         spec:
           restartPolicy: OnFailure
           serviceAccountName: {{ include "openldap.serviceAccountName" . }}
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels:
+                      statefulset.kubernetes.io/pod-name: {{ printf "%s-0" (include "openldap.fullname" .) | quote }}
+                  topologyKey: kubernetes.io/hostname
           {{- with .Values.imagePullSecrets }}
           imagePullSecrets:
             {{- toYaml . | nindent 12 }}
@@ -56,6 +73,24 @@ spec:
                   mountPath: /var/lib/openldap/openldap-data
                 - name: backups
                   mountPath: /var/lib/openldap/openldap-backups
+                {{- if .Values.tlsSecret.existingSecret }}
+                - name: tls
+                  mountPath: /container/services/openldap/assets/certs
+                  readOnly: true
+                {{- end }}
+                {{- if .Values.customModulesVolume }}
+                - name: custom-modules
+                  mountPath: /container/services/openldap/assets/module
+                  readOnly: true
+                {{- end }}
+                {{- if .Values.customSchemasVolume }}
+                - name: custom-schemas
+                  mountPath: /container/services/openldap/assets/schema
+                  readOnly: true
+                {{- end }}
+                {{- with .Values.extraVolumeMounts }}
+                {{- toYaml . | nindent 16 }}
+                {{- end }}
           volumes:
             {{- range $name := list "conf" "data" "backups" }}
             - name: {{ $name }}
@@ -65,5 +100,28 @@ spec:
               persistentVolumeClaim:
                 claimName: {{ $name }}-{{ include "openldap.fullname" $ }}-0
               {{- end }}
+            {{- end }}
+            {{- if .Values.tlsSecret.existingSecret }}
+            - name: tls
+              secret:
+                secretName: {{ include "openldap.tlsSecretName" . }}
+                items:
+                  - key: {{ .Values.tlsSecret.keys.cert }}
+                    path: tls.crt
+                  - key: {{ .Values.tlsSecret.keys.key }}
+                    path: tls.key
+                  - key: {{ .Values.tlsSecret.keys.ca }}
+                    path: ca.crt
+            {{- end }}
+            {{- if .Values.customModulesVolume }}
+            - name: custom-modules
+              {{- toYaml .Values.customModulesVolume | nindent 14 }}
+            {{- end }}
+            {{- if .Values.customSchemasVolume }}
+            - name: custom-schemas
+              {{- toYaml .Values.customSchemasVolume | nindent 14 }}
+            {{- end }}
+            {{- with .Values.extraVolumes }}
+            {{- toYaml . | nindent 12 }}
             {{- end }}
 {{- end }}

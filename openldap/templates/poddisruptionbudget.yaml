@@ -9,8 +9,9 @@ spec:
   selector:
     matchLabels:
       {{- include "openldap.selectorLabels" . | nindent 6 }}
-  {{- if .Values.podDisruptionBudget.maxUnavailable }}
-  maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable | quote }}
+  {{- $maxUnavailable := .Values.podDisruptionBudget.maxUnavailable }}
+  {{- if and (ne $maxUnavailable nil) (ne (toString $maxUnavailable) "") }}
+  maxUnavailable: {{ $maxUnavailable | toYaml }}
   {{- else }}
   minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
   {{- end }}

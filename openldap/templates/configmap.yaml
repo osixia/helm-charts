@@ -17,6 +17,30 @@
 {{- end }}
 {{- end }}
 {{- if $replicationEnabled }}
+{{- $passwordKey := "OPENLDAP_BOOTSTRAP_REPLICATION_DATA_READONLY_PASSWORD" }}
+{{- $password := .Values.openldap.bootstrap.replication.dataReadonlyPassword }}
+{{- $passwordUnknown := false }}
+{{- range $secret := list .Values.extraEnvSecret .Values.bootstrapEnvSecret }}
+{{- if $secret.existingSecret }}
+{{- $passwordUnknown = true }}
+{{- else if hasKey $secret.env $passwordKey }}
+{{- $password = index $secret.env $passwordKey }}
+{{- $passwordUnknown = false }}
+{{- end }}
+{{- end }}
+{{- range .Values.extraEnv }}
+{{- if eq .name $passwordKey }}
+{{- if hasKey . "value" }}
+{{- $password = .value }}
+{{- $passwordUnknown = false }}
+{{- else }}
+{{- $passwordUnknown = true }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if and (not $passwordUnknown) (empty $password) }}
+{{- fail "Replication requires a shared password: set openldap.bootstrap.replication.dataReadonlyPassword or OPENLDAP_BOOTSTRAP_REPLICATION_DATA_READONLY_PASSWORD via bootstrapEnvSecret, extraEnvSecret or extraEnv" }}
+{{- end }}
 {{- $protocol := .Values.openldap.bootstrap.replication.protocol }}
 {{- if eq $protocol "ldap" }}
 {{- if not .Values.openldap.protocols.ldap.enabled }}

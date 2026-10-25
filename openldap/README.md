@@ -233,6 +233,20 @@ openldap:
       dataReadonlyPassword: "changeme"   # plain text, used internally only
 ```
 
+All replicas must use the same replication password. When replication is enabled,
+the chart rejects an empty password instead of letting each node generate a
+different one. You can also supply it through a shared bootstrap secret:
+
+```yaml
+bootstrapEnvSecret:
+  existingSecret: my-ldap-bootstrap
+```
+
+The secret must contain a non-empty
+`OPENLDAP_BOOTSTRAP_REPLICATION_DATA_READONLY_PASSWORD` key. Passwords supplied
+through existing secrets or `extraEnv.valueFrom` are checked at bootstrap time,
+since their values are unavailable during an offline Helm render.
+
 The chart builds the replication host list automatically from pod FQDNs:
 
 ```
@@ -269,13 +283,13 @@ openldap:
 clusterDomain: cluster.local   # used for auto-generated FQDNs
 ```
 
-**Replication with TLS:**
+**Replication over LDAP with StartTLS (optional):**
 
 ```yaml
 openldap:
   bootstrap:
     replication:
-      protocol: ldaps
+      protocol: ldap
       tls:
         enabled: true
         syncRepl: "starttls=critical tls_reqcert=demand"
@@ -374,8 +388,9 @@ volume spec to enable mounting.
 
 ### Custom modules
 
-Mounted at `/container/services/openldap/assets/module` in **all** containers
-(init, pre-upgrade, main).
+Mounted at `/container/services/openldap/assets/module` in the bootstrap,
+pre-upgrade, main and backup containers. Modules are copied to the image's module
+directory before bootstrapping, backing up or starting slapd.
 
 ```yaml
 customModulesVolume:
@@ -385,7 +400,8 @@ customModulesVolume:
 
 ### Custom schemas
 
-Mounted at `/container/services/openldap/assets/schema` in **all** containers.
+Mounted at `/container/services/openldap/assets/schema` in the bootstrap,
+pre-upgrade, main and backup containers.
 
 ```yaml
 customSchemasVolume:
@@ -436,7 +452,8 @@ successful bootstrap does not automatically reapply the LDIF files.
 
 ### Extra volumes
 
-`extraVolumes` / `extraVolumeMounts` are added to **all** containers.
+`extraVolumes` / `extraVolumeMounts` are added to **all** containers, including
+the backup CronJob.
 
 ```yaml
 extraVolumes:
@@ -472,7 +489,8 @@ bootstrapEnvSecret:
 Or reference an existing secret (e.g. from External Secrets Operator, Vault, or
 Sealed Secrets) with `bootstrapEnvSecret.existingSecret`. `env` and `existingSecret`
 are mutually exclusive — `existingSecret` takes priority. Either way, the override
-secret is loaded **after** the auto-generated one so its values win:
+secret is loaded **after** the auto-generated one and `extraEnvSecret` so its
+values win. Explicit variables in `extraEnv` take precedence over all secrets:
 
 ```yaml
 bootstrapEnvSecret:
@@ -509,12 +527,36 @@ extraEnvSecret:
 If `existingSecret` is empty no secret is mounted. The secret is loaded with
 `optional: true` so a missing secret does not block startup.
 
+Changes to the runtime ConfigMap or the secret generated from `extraEnvSecret.env`
+update checksum annotations on the StatefulSet pod template. With the default
+`RollingUpdate` strategy, a subsequent `helm upgrade` restarts the pods to load
+the new environment. Custom `podAnnotations` are preserved; the
+`checksum/runtime-config` and `checksum/runtime-secret` keys are managed by the chart.
+
+Bootstrap secret contents are excluded from these checksums; changing their
+contents does not trigger a restart or reapply bootstrap to existing data.
+When using `extraEnvSecret.existingSecret`, restart the pods
+explicitly after changing the external secret's contents; the chart does not
+watch external secrets.
+
 ---
 
 ## Backup CronJob
 
 The backup CronJob is disabled by default. It reuses the StatefulSet volumes
 (generated PVCs or custom sources) and runs `openldap-ctl backup` on a schedule.
+The default command first prepares custom modules and schemas without starting
+slapd. TLS certificates and extra volumes are also available to the backup job.
+
+Backup pods use a separate instance label (`<release>-backup`) and the component
+label `backup`, so they are excluded from LDAP pod selectors and the LDAP
+PodDisruptionBudget's availability count.
+
+The backup pod is scheduled on the same node as the LDAP pod with ordinal `0`,
+whose volumes it reuses, so `ReadWriteOnce` volumes remain on a single node.
+It inherits `nodeSelector` and `tolerations`. Its required pod affinity targets
+LDAP pod `0` in the same namespace; if that pod is absent or has no assigned node,
+the backup waits until it can be scheduled alongside it.
 
 ```yaml
 backupCronJob:
@@ -525,12 +567,17 @@ backupCronJob:
   command:
     - /bin/sh
     - -ec
-    - container run -- openldap-ctl backup "openldap-cron-$(date -I)-${OPENLDAP_VERSION}" --clean 15 --clean-prefix openldap-cron-
+    - >-
+      container --exec openldap --skip-process &&
+      container run -- openldap-ctl backup "openldap-cron-$(date -I)-${OPENLDAP_VERSION}" --clean 15 --clean-prefix openldap-cron-
   resources: {}
 ```
 
 `--clean 15 --clean-prefix openldap-cron-` removes only scheduled backups older
 than 15 days, preserving manual and upgrade backups.
+
+If you override `backupCronJob.command`, retain the preparation step when using
+custom modules or schemas.
 
 Restore a backup manually:
 
@@ -544,10 +591,12 @@ kubectl exec -it <pod> -- container run -- openldap-ctl restore <backup-name> --
 
 ### Patch / minor upgrades (v2.x → v2.y)
 
-The chart runs an **openldap-pre-upgrade** init container before the main container
-starts. It uses the *previous* image version to perform any required migration.
+When enabled, the chart runs an **openldap-pre-upgrade** init container **before
+the bootstrap init container**. It uses the *previous* image version to prepare
+custom modules and schemas and create the migration backup. The new image then
+initializes or migrates the data.
 
-You **must** set `previousImage.tag` during upgrades:
+You **must** set `previousImage.tag` during upgrades when pre-upgrade is enabled:
 
 ```yaml
 image:
@@ -567,6 +616,19 @@ openldap:
 ```
 
 Remove `previousImage.tag` after the upgrade completes.
+
+To run without a pre-upgrade container or a previous image, including during
+`helm upgrade`, disable pre-upgrade:
+
+```yaml
+openldap:
+  preUpgrade:
+    enabled: false
+```
+
+A fresh installation never requires `previousImage.tag`. If an image change
+requires a data migration while pre-upgrade is disabled, provide the required
+old-version backup separately before starting the new image.
 
 ### v1 → v2 (breaking change)
 
@@ -589,7 +651,7 @@ Remove `previousImage.tag` after the upgrade completes.
 | `image.tag` | `2.6.15-beta` | Image tag |
 | `image.pullPolicy` | `IfNotPresent` | Pull policy |
 | `previousImage.repository` | `""` | Previous image repository (defaults to `image.repository`) |
-| `previousImage.tag` | `""` | Previous image tag — **required during upgrades** |
+| `previousImage.tag` | `""` | Previous image tag — required during upgrades when pre-upgrade is enabled |
 | `previousImage.pullPolicy` | `IfNotPresent` | Previous image pull policy |
 | `imagePullSecrets` | `[]` | Image pull secrets |
 | `nameOverride` | `""` | Override chart name |
@@ -638,6 +700,14 @@ Remove `previousImage.tag` after the upgrade completes.
 | `podAntiAffinity.type` | `preferred` | `preferred` or `required` |
 | `podAntiAffinity.weight` | `100` | Weight for preferred anti-affinity |
 | `podAntiAffinity.topologyKey` | `kubernetes.io/hostname` | Topology key |
+
+### Pod disruption budget
+
+| Key | Default | Description |
+|---|---|---|
+| `podDisruptionBudget.enabled` | `false` | Create a PodDisruptionBudget |
+| `podDisruptionBudget.minAvailable` | `1` | Minimum available pods, used when `maxUnavailable` is unset or empty |
+| `podDisruptionBudget.maxUnavailable` | `""` | Maximum unavailable pods: an integer (including `0`) or a percentage such as `"50%"`; takes precedence over `minAvailable` |
 
 ### TLS secret
 
@@ -747,7 +817,7 @@ Remove `previousImage.tag` after the upgrade completes.
 | `openldap.bootstrap.replication.hosts` | `[]` | Override replication host list |
 | `openldap.bootstrap.replication.syncprovCheckpoint` | `100 10` | syncprov checkpoint |
 | `openldap.bootstrap.replication.dataReadonlyDnPrefix` | `cn=replicator` | Replication account prefix |
-| `openldap.bootstrap.replication.dataReadonlyPassword` | `""` | Replication account password (plain) |
+| `openldap.bootstrap.replication.dataReadonlyPassword` | `""` | Shared replication account password (plain); required when replication is enabled, or supplied via a secret/env override |
 | `openldap.bootstrap.replication.tls.enabled` | `false` | Enable TLS in replication config |
 | `openldap.bootstrap.replication.tls.syncRepl` | `starttls=critical tls_reqcert=demand` | Extra syncrepl TLS options |
 
