@@ -22,9 +22,8 @@ Helm chart for the [osixia/openldap](https://hub.docker.com/r/osixia/openldap) c
 
 ## ⚡ Quick start — 2 minutes
 
-The default image is `2.6.15-beta`. Last-bind tracking, inactivity limits, progressive
-lockouts, the new global request limits and TLS reload require an image containing
-the subsequent `develop` changes; set `image.tag` to that release when available.
+The default image is `2.6.15-rc`, which includes last-bind tracking, inactivity
+limits, progressive lockouts, global request limits and TLS reload.
 
 The only values you **must** change to have a working server:
 
@@ -85,10 +84,10 @@ Passwords are stored as **hashed values**. Generate them with the image:
 
 ```bash
 # hash a specific password
-docker run --rm osixia/openldap run -- openldap-ctl password hash passw0rd
+docker run --rm osixia/openldap:2.6.15-rc run -- openldap-ctl password hash passw0rd
 
 # generate a random password + hash
-docker run --rm osixia/openldap run -- openldap-ctl password generate
+docker run --rm osixia/openldap:2.6.15-rc run -- openldap-ctl password generate
 ```
 
 Use the resulting `{ARGON2}...` string in `rootPasswordHashed` fields.
@@ -688,10 +687,10 @@ You **must** set `previousImage.tag` during upgrades when pre-upgrade is enabled
 
 ```yaml
 image:
-  tag: 2.6.11
+  tag: 2.6.15-rc
 
 previousImage:
-  tag: 2.6.10   # the version currently running
+  tag: 2.6.15-beta   # the version currently running
 ```
 
 Control how aggressively migrations are applied:
