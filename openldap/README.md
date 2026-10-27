@@ -6,6 +6,7 @@ Helm chart for the [osixia/openldap](https://hub.docker.com/r/osixia/openldap) c
 - [Quick start — 2 minutes](#-quick-start--2-minutes)
 - [DN conventions](#dn-conventions)
 - [Passwords](#passwords)
+- [Directory tree, admin and management](#directory-tree-admin-and-management)
 - [Protocols](#protocols)
 - [TLS](#tls)
 - [Persistence](#persistence)
@@ -68,6 +69,9 @@ All DN fields in this chart use a **prefix** pattern. You only set the RDN part
 | `bootstrap.suffix: dc=my-org,dc=com` | *(the base suffix)* |
 | `database.rootDnPrefix: cn=admin` | `cn=admin,dc=my-org,dc=com` |
 | `database.readonly.dnPrefix: cn=readonly` | `cn=readonly,dc=my-org,dc=com` |
+| `database.tree.servicesDnPrefix: ou=services` | `ou=services,dc=my-org,dc=com` |
+| `database.management.dnPrefix: cn=management` | `cn=management,ou=services,dc=my-org,dc=com` |
+| `database.admin.dnPrefix: cn=admin` | `cn=admin,ou=services,dc=my-org,dc=com` |
 | `config.rootDnPrefix: cn=admin` | `cn=admin,cn=config` |
 | `ppolicy.groupDnPrefix: ou=Policies` | `ou=Policies,dc=my-org,dc=com` |
 | `ppolicy.default.policyDnPrefix: cn=default` | `cn=default,ou=Policies,dc=my-org,dc=com` |
@@ -92,6 +96,80 @@ Use the resulting `{ARGON2}...` string in `rootPasswordHashed` fields.
 If a `rootPasswordHashed` is left empty, the image generates a random password at
 bootstrap time and logs it. **With persistence enabled** the hash is written to the
 database and survives restarts; without persistence it is lost on every restart.
+
+---
+
+## Directory tree, admin and management
+
+Enable the users/groups/services tree and the scoped management account for
+applications such as Authelia:
+
+```yaml
+openldap:
+  bootstrap:
+    database:
+      tree:
+        enabled: true
+      management:
+        enabled: true
+        passwordHashed: "{ARGON2}..."
+```
+
+The default account DN is `cn=management,ou=services,<suffix>`. Its `dnPrefix` is
+combined with `tree.servicesDnPrefix` and the suffix, so changing the services
+branch also moves the account. It can read the users/groups branches and reset
+user passwords, with no other writes or password hash/history reads by default.
+`hiddenAttributes` and `hiddenPpolicyAttributes` are comma-separated lists; the
+latter is added only with ppolicy, and the combined list must not be empty.
+
+Tree and account creation are independent and disabled by default. If custom
+LDIFs create the OUs, leave `tree.enabled=false` and create the parent entries
+before `80-database-management-account.ldif`. These options apply only on an
+empty config/data volume. With ppolicy, management resets bypass password quality,
+history-reuse and minimum-age checks: enforce these requirements in the application.
+
+The account hash can also be supplied through `bootstrapEnvSecret` using
+`OPENLDAP_BOOTSTRAP_DATA_MANAGEMENT_PASSWORD_HASHED`.
+
+### Root versus directory admin
+
+Root and admin are different LDAP identities, with different passwords and rights:
+
+| Account | Default DN | Use |
+|---|---|---|
+| Data root | `cn=admin,<suffix>` | Data maintenance/recovery; bypasses all ACLs in the data database |
+| Config root | `cn=admin,cn=config` | Server configuration; can change ACLs and root passwords |
+| Directory admin | `cn=admin,ou=services,<suffix>` | Day-to-day user/group administration in phpLDAPadmin; obeys scoped ACLs |
+| Management | `cn=management,ou=services,<suffix>` | Application user/group reads and password resets, for example Authelia |
+
+Each root DN bypasses ACLs only in its own database. The data root does not
+automatically have access to `cn=config`; reserve config root for server maintenance.
+Neither root DN needs a real directory entry. The scoped admin has a real entry,
+as required for normal login to phpLDAPadmin 2.
+
+To create the directory administrator on a fresh installation:
+
+```yaml
+openldap:
+  bootstrap:
+    database:
+      tree:
+        enabled: true
+      admin:
+        enabled: true
+        passwordHashed: "{ARGON2}..."
+```
+
+The admin DN uses `admin.dnPrefix`, the services branch prefix and the suffix.
+It can create/edit/rename/delete users and groups and reset user passwords.
+It cannot read password hashes/history, change service accounts or its own account,
+or access `cn=config`. Use data root to rotate the admin password. With ppolicy,
+admin resets have the same password-rule bypass as management resets described above.
+
+Use `LDAP_LOGIN_ATTR=dn` and `LDAP_LOGIN_OBJECTCLASS=organizationalRole` in
+phpLDAPadmin, with the administrator's full DN and password. Configure the
+application's search credentials and TLS separately. The admin hash may also
+be supplied through `bootstrapEnvSecret` as `OPENLDAP_BOOTSTRAP_DATA_ADMIN_PASSWORD_HASHED`.
 
 ---
 
@@ -589,6 +667,12 @@ kubectl exec -it <pod> -- container run -- openldap-ctl restore <backup-name> --
 
 ## Upgrading
 
+The chart now targets `osixia/openldap:2.6.15-rc`. Environment overrides must use
+`OPENLDAP_BOOTSTRAP_MONITOR` and `OPENLDAP_BOOTSTRAP_AUDITLOG` instead of the old
+`*_ENABLED` names. The corresponding chart values remain `monitor.enabled` and
+`auditlog.enabled`. Custom management LDIF overrides must use
+`63-database-management-acl.ldif` and `80-database-management-account.ldif`.
+
 ### Patch / minor upgrades (v2.x → v2.y)
 
 When enabled, the chart runs an **openldap-pre-upgrade** init container **before
@@ -648,7 +732,7 @@ old-version backup separately before starting the new image.
 | `replicaCount` | `1` | Number of replicas |
 | `clusterDomain` | `cluster.local` | Kubernetes cluster domain, used to build pod FQDNs |
 | `image.repository` | `osixia/openldap` | Container image |
-| `image.tag` | `2.6.15-beta` | Image tag |
+| `image.tag` | `2.6.15-rc` | Image tag |
 | `image.pullPolicy` | `IfNotPresent` | Pull policy |
 | `previousImage.repository` | `""` | Previous image repository (defaults to `image.repository`) |
 | `previousImage.tag` | `""` | Previous image tag — required during upgrades when pre-upgrade is enabled |
@@ -796,6 +880,18 @@ old-version backup separately before starting the new image.
 | `openldap.bootstrap.database.lastBind.precision` | `3600` | Minimum seconds between last-bind timestamp updates |
 | `openldap.bootstrap.database.rootDnPrefix` | `cn=admin` | Data root DN prefix |
 | `openldap.bootstrap.database.rootPasswordHashed` | `""` | Data root password hash |
+| `openldap.bootstrap.database.tree.enabled` | `false` | Create the users, groups and services OUs |
+| `openldap.bootstrap.database.tree.usersDnPrefix` | `ou=users` | Users branch prefix |
+| `openldap.bootstrap.database.tree.groupsDnPrefix` | `ou=groups` | Groups branch prefix |
+| `openldap.bootstrap.database.tree.servicesDnPrefix` | `ou=services` | Services branch prefix |
+| `openldap.bootstrap.database.management.enabled` | `false` | Create the scoped user/group reader and password-reset account |
+| `openldap.bootstrap.database.management.dnPrefix` | `cn=management` | Account RDN, prepended to the services branch DN |
+| `openldap.bootstrap.database.management.passwordHashed` | `""` | Account password hash; generated if empty when enabled |
+| `openldap.bootstrap.database.management.hiddenAttributes` | `userPassword,shadowLastChange` | Comma-separated attributes hidden from the account |
+| `openldap.bootstrap.database.management.hiddenPpolicyAttributes` | `pwdHistory` | Additional hidden attributes when ppolicy is enabled |
+| `openldap.bootstrap.database.admin.enabled` | `false` | Create a scoped directory administrator for users/groups |
+| `openldap.bootstrap.database.admin.dnPrefix` | `cn=admin` | Administrator RDN, prepended to the services branch DN |
+| `openldap.bootstrap.database.admin.passwordHashed` | `""` | Administrator password hash; generated if empty when enabled |
 | `openldap.bootstrap.database.readonly.enabled` | `false` | Create read-only data account |
 | `openldap.bootstrap.database.readonly.dnPrefix` | `cn=readonly` | Read-only account prefix |
 | `openldap.bootstrap.database.readonly.passwordHashed` | `""` | Read-only account password hash |

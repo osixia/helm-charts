@@ -7,7 +7,7 @@ clusterDomain: cluster.local
 
 image:
   repository: osixia/openldap
-  tag: 2.6.15-beta
+  tag: 2.6.15-rc
   pullPolicy: IfNotPresent
 
 previousImage:
@@ -140,6 +140,21 @@ openldap:
         precision: 3600
       rootDnPrefix: "cn=admin"
       rootPasswordHashed: ""
+      tree:
+        enabled: false
+        usersDnPrefix: "ou=users"
+        groupsDnPrefix: "ou=groups"
+        servicesDnPrefix: "ou=services"
+      admin:
+        enabled: false
+        dnPrefix: "cn=admin"
+        passwordHashed: ""
+      management:
+        enabled: false
+        dnPrefix: "cn=management"
+        passwordHashed: ""
+        hiddenAttributes: "userPassword,shadowLastChange"
+        hiddenPpolicyAttributes: "pwdHistory"
       readonly:
         enabled: false
         dnPrefix: "cn=readonly"
