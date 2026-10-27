@@ -101,6 +101,10 @@ database and survives restarts; without persistence it is lost on every restart.
 
 ## Directory tree, admin and management
 
+See the [Authelia](../examples/ldap-stack-authelia/README.md) and
+[Keycloak](../examples/ldap-stack-keycloak/README.md) examples for shared secrets,
+verified StartTLS and executable integration tests.
+
 Enable the users/groups/services tree and the scoped management account for
 applications such as Authelia:
 
@@ -195,7 +199,7 @@ openldap:
       enabled: true
 ```
 
-Disable LDAPS (plain LDAP only):
+Use only the LDAP listener (StartTLS is available when bootstrap TLS is enabled):
 
 ```yaml
 openldap:

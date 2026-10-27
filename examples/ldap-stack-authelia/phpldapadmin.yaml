@@ -1,0 +1,32 @@
+fullnameOverride: phpldapadmin
+
+app:
+  existingSecret: phpldapadmin-credentials
+  ldap:
+    host: openldap
+    port: 389
+    connection: starttls
+    ssl: false
+    tls: true
+
+extraEnv:
+  - name: LDAP_BASE_DN
+    value: dc=example,dc=org
+  - name: LDAP_LOGIN_ATTR
+    value: dn
+  - name: LDAP_LOGIN_ATTR_DESC
+    value: LDAP distinguished name
+  - name: LDAP_LOGIN_OBJECTCLASS
+    value: organizationalRole
+  - name: LDAPTLS_CACERT
+    value: /ldap-ca/ca.crt
+  - name: LDAPTLS_REQCERT
+    value: demand
+extraVolumes:
+  - name: ldap-ca
+    secret:
+      secretName: ldap-ca
+extraVolumeMounts:
+  - name: ldap-ca
+    mountPath: /ldap-ca
+    readOnly: true

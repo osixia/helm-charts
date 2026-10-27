@@ -1,0 +1,55 @@
+fullnameOverride: keycloak
+replicas: 1
+image:
+  repository: quay.io/keycloak/keycloak
+  tag: "26.8.1"
+command:
+  - /opt/keycloak/bin/kc.sh
+  - start
+  - --import-realm
+http:
+  relativePath: /
+proxy:
+  enabled: false
+  http:
+    enabled: true
+service:
+  httpsPort: null
+serviceAccount:
+  automountServiceAccountToken: false
+database:
+  vendor: postgres
+  hostname: keycloak-postgres
+  port: 5432
+  database: keycloak
+  username: keycloak
+  existingSecret: keycloak-postgres
+  existingSecretKey: password
+extraEnv: |
+  - name: KC_HOSTNAME_STRICT
+    value: "false"
+  - name: KC_TRUSTSTORE_PATHS
+    value: /ldap-ca/ca.crt
+extraEnvFrom: |
+  - secretRef:
+      name: keycloak-credentials
+extraVolumes: |
+  - name: ldap-ca
+    secret:
+      secretName: ldap-ca
+  - name: realm
+    configMap:
+      name: keycloak-realm
+extraVolumeMounts: |
+  - name: ldap-ca
+    mountPath: /ldap-ca
+    readOnly: true
+  - name: realm
+    mountPath: /opt/keycloak/data/import
+    readOnly: true
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    memory: 1Gi

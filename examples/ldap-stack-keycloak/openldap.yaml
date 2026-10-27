@@ -1,0 +1,30 @@
+fullnameOverride: openldap
+
+tlsSecret:
+  existingSecret: ldap-tls
+bootstrapEnvSecret:
+  existingSecret: ldap-bootstrap
+bootstrapCustomDataLdifVolume:
+  configMap:
+    name: ldap-example-users
+
+openldap:
+  protocols:
+    ldaps:
+      enabled: false
+  bootstrap:
+    organization: LDAP Example
+    suffix: dc=example,dc=org
+    database:
+      tree:
+        enabled: true
+      admin:
+        enabled: true
+      management:
+        enabled: true
+        dnPrefix: cn=keycloak
+    tls:
+      enabled: true
+      required: true
+    ppolicy:
+      enabled: true
