@@ -2,6 +2,8 @@
 
 Helm charts for deploying OpenLDAP and phpLDAPadmin on Kubernetes.
 
+![helm-charts illustration](docs/assets/images/osixia-helm-charts.png)
+
 | Chart | Description |
 | --- | --- |
 | [openldap](openldap/README.md) | OpenLDAP with persistence, TLS, replication and scheduled backups |
