@@ -3,6 +3,24 @@ entries:
   openldap:
   - apiVersion: v2
     appVersion: 2.6.15-rc
+    created: "2026-11-01T01:01:39.06075049Z"
+    description: OpenLDAP server chart for the osixia/openldap container image.
+    digest: 4ea4e20716b2a1cdd5c8a0d55ac3909d00584092d7ba4aac71f3b47757909abf
+    home: https://github.com/osixia/container-openldap
+    keywords:
+    - ldap
+    - openldap
+    maintainers:
+    - name: osixia
+    name: openldap
+    sources:
+    - https://github.com/osixia/container-openldap
+    type: application
+    urls:
+    - https://github.com/osixia/helm-charts/releases/download/openldap-0.4.0/openldap-0.4.0.tgz
+    version: 0.4.0
+  - apiVersion: v2
+    appVersion: 2.6.15-rc
     created: "2026-10-27T18:04:14.225180966Z"
     description: OpenLDAP server chart for the osixia/openldap container image.
     digest: 8145758b6f401c9df51fb8073e49c11f0047fab984da65ff35e665127c52e8fc
@@ -58,6 +76,24 @@ entries:
   phpldapadmin:
   - apiVersion: v2
     appVersion: 2.3.11
+    created: "2026-11-01T01:01:39.232954948Z"
+    description: phpLDAPadmin web-based LDAP administration tool.
+    digest: d92748346da6e9ab9cff746ff67bc8afd87526e366db9410da69cb8d0ab13b00
+    home: https://github.com/leenooks/phpLDAPadmin
+    keywords:
+    - ldap
+    - phpldapadmin
+    maintainers:
+    - name: osixia
+    name: phpldapadmin
+    sources:
+    - https://github.com/leenooks/phpLDAPadmin
+    type: application
+    urls:
+    - https://github.com/osixia/helm-charts/releases/download/phpldapadmin-0.3.0/phpldapadmin-0.3.0.tgz
+    version: 0.3.0
+  - apiVersion: v2
+    appVersion: 2.3.11
     created: "2026-10-27T18:04:14.503924677Z"
     description: phpLDAPadmin web-based LDAP administration tool.
     digest: ed43d6fc45eb16eca92d162d41c33ebced8b8b0192fe15960ffc1e05c6ae69f3
@@ -110,4 +146,4 @@ entries:
     urls:
     - https://github.com/osixia/helm-charts/releases/download/phpldapadmin-0.1.0/phpldapadmin-0.1.0.tgz
     version: 0.1.0
-generated: "2026-10-27T18:04:14.50394231Z"
+generated: "2026-11-01T01:01:39.23296911Z"
