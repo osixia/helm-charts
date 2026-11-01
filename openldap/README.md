@@ -548,6 +548,31 @@ extraVolumeMounts:
     readOnly: true
 ```
 
+### Extra containers
+
+`extraContainers` adds containers to the OpenLDAP pod, as is: they do not receive
+`extraVolumeMounts`, the environment or the security context of the chart. They can
+mount the chart volumes by name (`conf`, `data`, `backups`, `auditlog`) and stay on
+the same node as OpenLDAP. Changing them restarts the OpenLDAP pod.
+
+Example: serving backups with a read-only web server.
+
+```yaml
+extraContainers:
+  - name: backups-server
+    image: nginxinc/nginx-unprivileged:1.30.6-alpine
+    ports:
+      - name: backups
+        containerPort: 8080
+    volumeMounts:
+      - name: backups
+        mountPath: /usr/share/nginx/html
+        readOnly: true
+```
+
+This port is not added to the chart Service, and containers in a pod share its
+network: a NetworkPolicy on the pod applies to OpenLDAP as well.
+
 ---
 
 ## Extra environment variables and secrets

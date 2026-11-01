@@ -259,6 +259,8 @@ bootstrapCustomDataLdifVolume: {}
 
 extraVolumes: []
 extraVolumeMounts: []
+# Additional containers in the OpenLDAP pod, added as is.
+extraContainers: []
 topologySpreadConstraints: []
 
 livenessProbe:
