@@ -10,3 +10,6 @@ administrator, search credentials and verified StartTLS. The
 OpenLDAP root DN is a virtual identity and cannot log in to phpLDAPadmin 2.
 
 Chart 0.2.1 fixes the container port for the default phpLDAPadmin 2.3.11 image.
+
+`extraContainers` adds containers to the phpLDAPadmin pod, as is: they do not receive
+`extraVolumeMounts`, the environment or the security context of the chart.

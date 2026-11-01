@@ -28,6 +28,8 @@ extraVolumeMounts: []
 extraEnv: []
 extraEnvFrom: []
 initContainers: []
+# Additional containers in the phpLDAPadmin pod, added as is.
+extraContainers: []
 topologySpreadConstraints: []
 
 podSecurityContext: {}
