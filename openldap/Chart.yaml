@@ -2,8 +2,8 @@ apiVersion: v2
 name: openldap
 description: OpenLDAP server chart for the osixia/openldap container image.
 type: application
-version: 0.4.0
-appVersion: "2.6.15-rc"
+version: 0.4.1
+appVersion: "2.6.15"
 home: https://github.com/osixia/container-openldap
 sources:
   - https://github.com/osixia/container-openldap

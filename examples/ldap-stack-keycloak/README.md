@@ -22,7 +22,7 @@ OpenLDAP rejects unencrypted binds; its separate LDAPS listener is disabled.
 
 Requires Helm 3, kubectl, Python 3, OpenSSL and dynamic volume provisioning.
 Run from this directory for a new installation. Publish
-`osixia/openldap:2.6.15-rc` first, or load your local image into the cluster.
+`osixia/openldap:2.6.15` first, or load your local image into the cluster.
 Its build requires `osixia/baseimage:alpine-2.1.0`.
 
 ```bash

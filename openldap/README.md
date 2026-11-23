@@ -22,7 +22,7 @@ Helm chart for the [osixia/openldap](https://hub.docker.com/r/osixia/openldap) c
 
 ## ⚡ Quick start — 2 minutes
 
-The default image is `2.6.15-rc`, which includes last-bind tracking, inactivity
+The default image is `2.6.15`, which includes last-bind tracking, inactivity
 limits, progressive lockouts, global request limits and TLS reload.
 
 The only values you **must** change to have a working server:
@@ -84,10 +84,10 @@ Passwords are stored as **hashed values**. Generate them with the image:
 
 ```bash
 # hash a specific password
-docker run --rm osixia/openldap:2.6.15-rc run -- openldap-ctl password hash passw0rd
+docker run --rm osixia/openldap:2.6.15 run -- openldap-ctl password hash passw0rd
 
 # generate a random password + hash
-docker run --rm osixia/openldap:2.6.15-rc run -- openldap-ctl password generate
+docker run --rm osixia/openldap:2.6.15 run -- openldap-ctl password generate
 ```
 
 Use the resulting `{ARGON2}...` string in `rootPasswordHashed` fields.
@@ -695,7 +695,7 @@ kubectl exec -it <pod> -- container run -- openldap-ctl restore <backup-name> --
 
 ## Upgrading
 
-The chart now targets `osixia/openldap:2.6.15-rc`. Environment overrides must use
+The chart now targets `osixia/openldap:2.6.15`. Environment overrides must use
 `OPENLDAP_BOOTSTRAP_MONITOR` and `OPENLDAP_BOOTSTRAP_AUDITLOG` instead of the old
 `*_ENABLED` names. The corresponding chart values remain `monitor.enabled` and
 `auditlog.enabled`. Custom management LDIF overrides must use
@@ -712,7 +712,7 @@ You **must** set `previousImage.tag` during upgrades when pre-upgrade is enabled
 
 ```yaml
 image:
-  tag: 2.6.15-rc
+  tag: 2.6.15
 
 previousImage:
   tag: 2.6.15-beta   # the version currently running
@@ -760,7 +760,7 @@ old-version backup separately before starting the new image.
 | `replicaCount` | `1` | Number of replicas |
 | `clusterDomain` | `cluster.local` | Kubernetes cluster domain, used to build pod FQDNs |
 | `image.repository` | `osixia/openldap` | Container image |
-| `image.tag` | `2.6.15-rc` | Image tag |
+| `image.tag` | `2.6.15` | Image tag |
 | `image.pullPolicy` | `IfNotPresent` | Pull policy |
 | `previousImage.repository` | `""` | Previous image repository (defaults to `image.repository`) |
 | `previousImage.tag` | `""` | Previous image tag — required during upgrades when pre-upgrade is enabled |

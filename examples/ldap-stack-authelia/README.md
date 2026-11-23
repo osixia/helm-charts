@@ -22,7 +22,7 @@ are refused, and the separate LDAPS listener is disabled.
 
 Requires Helm 3, kubectl, Python 3, OpenSSL and a Kubernetes cluster with dynamic
 volume provisioning. Run from this directory against an **empty installation**.
-The image `osixia/openldap:2.6.15-rc` must be published or loaded into your cluster;
+The image `osixia/openldap:2.6.15` must be published or loaded into your cluster;
 its build requires `osixia/baseimage:alpine-2.1.0`.
 
 ```bash

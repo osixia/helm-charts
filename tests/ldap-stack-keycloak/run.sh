@@ -12,7 +12,7 @@ source "${example_dir}/versions.env"
 : "${KUBECONFIG:?Set KUBECONFIG to the kubeconfig of a disposable kind cluster}"
 test_cluster="${KIND_CLUSTER:-ldap-stack-keycloak-test}"
 test_namespace="${TEST_NAMESPACE:-ldap-stack-keycloak-test}"
-test_image="${OPENLDAP_TEST_IMAGE:-osixia/openldap:2.6.15-rc}"
+test_image="${OPENLDAP_TEST_IMAGE:-osixia/openldap:2.6.15}"
 if [ "$(kubectl config current-context)" != "kind-${test_cluster}" ]; then
     echo "Expected the disposable kind-${test_cluster} context" >&2
     exit 1
