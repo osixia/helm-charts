@@ -2,6 +2,24 @@ apiVersion: v1
 entries:
   openldap:
   - apiVersion: v2
+    appVersion: 2.6.15
+    created: "2026-11-23T18:23:26.973180445Z"
+    description: OpenLDAP server chart for the osixia/openldap container image.
+    digest: 1b6084f0ceead354328020a727a55bfbd483ee19a91fccfaf948e51bedb80cc2
+    home: https://github.com/osixia/container-openldap
+    keywords:
+    - ldap
+    - openldap
+    maintainers:
+    - name: osixia
+    name: openldap
+    sources:
+    - https://github.com/osixia/container-openldap
+    type: application
+    urls:
+    - https://github.com/osixia/helm-charts/releases/download/openldap-0.4.1/openldap-0.4.1.tgz
+    version: 0.4.1
+  - apiVersion: v2
     appVersion: 2.6.15-rc
     created: "2026-11-01T01:01:39.06075049Z"
     description: OpenLDAP server chart for the osixia/openldap container image.
@@ -146,4 +164,4 @@ entries:
     urls:
     - https://github.com/osixia/helm-charts/releases/download/phpldapadmin-0.1.0/phpldapadmin-0.1.0.tgz
     version: 0.1.0
-generated: "2026-11-01T01:01:39.23296911Z"
+generated: "2026-11-23T18:23:26.973215581Z"
